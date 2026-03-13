@@ -11,13 +11,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
-      <body className="antialiased bg-black text-white overflow-x-hidden">
+      {/* suppressHydrationWarning fixes the body attribute mismatch 
+          caused by browser extensions (like the one in your error log).
+      */}
+      <body 
+        className="antialiased bg-black text-white overflow-x-hidden"
+        suppressHydrationWarning
+      >
         {!shouldHideNavbar && <Navbar />}
 
-        {/* md:pl-20 / lg:pl-64: Responsive padding to prevent sidebar overlap on desktop.
-            pb-24: Ensures mobile content isn't covered by the bottom navbar.
+        {/* We use flex and h-screen here to ensure the children (like Messages) 
+            can fill the remaining space without creating double scrollbars.
         */}
-        <div className={shouldHideNavbar ? "" : "min-h-screen pb-24 md:pb-0 md:pl-20 lg:pl-64"}>
+        <div className={shouldHideNavbar ? "" : "min-h-screen pb-24 md:pb-0 md:pl-20 lg:pl-64 flex flex-col"}>
           <AnimatePresence mode="wait">
             <motion.main
               key={pathname}
@@ -25,10 +31,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
-              className="w-full"
+              className="w-full flex-1"
             >
-              {/* REMOVED max-w-2xl here to allow full-screen width */}
-              <div className="w-full">
+              <div className="w-full h-full">
                 {children}
               </div>
             </motion.main>

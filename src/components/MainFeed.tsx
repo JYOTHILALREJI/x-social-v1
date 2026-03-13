@@ -1,9 +1,15 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image'; // Import for maximum data caching
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react';
 
 const MainFeed = () => {
-  const [posts, setPosts] = useState([1, 2, 3]); 
+  // Enhanced mock data to simulate database structure
+  const [posts, setPosts] = useState([
+    { id: 1, user: 'user_alpha', image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop' },
+    { id: 2, user: 'beta_creative', image: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=1000&auto=format&fit=crop' },
+    { id: 3, user: 'gamma_flux', image: 'https://images.unsplash.com/photo-1633167606207-d840b5070fc2?q=80&w=1000&auto=format&fit=crop' }
+  ]); 
   const [loading, setLoading] = useState(false);
   const observerTarget = useRef(null);
 
@@ -22,16 +28,19 @@ const MainFeed = () => {
 
   const loadMorePosts = () => {
     setLoading(true);
+    // Simulation of database fetch
     setTimeout(() => {
-      setPosts((prev) => [...prev, prev.length + 1, prev.length + 2]);
+      const newPosts = [
+        { id: Date.now(), user: 'new_creator', image: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=1000&auto=format&fit=crop' },
+        { id: Date.now() + 1, user: 'discovery_daily', image: 'https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?q=80&w=1000&auto=format&fit=crop' }
+      ];
+      setPosts((prev) => [...prev, ...newPosts]);
       setLoading(false);
-    }, 800);
+    }, 1200);
   };
 
   return (
-    /* h-full and no-scrollbar ensures the container handles its own scrolling without body bars */
     <div className="h-full w-full overflow-y-auto no-scrollbar snap-y snap-proximity scroll-smooth bg-black">
-      {/* Increased max-width for bigger screens */}
       <div className="max-w-4xl mx-auto pt-8 pb-24 px-4 space-y-12">
         <div className="flex justify-between items-center mb-10">
           <h2 className="text-4xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-500">
@@ -39,22 +48,32 @@ const MainFeed = () => {
           </h2>
         </div>
 
-        {posts.map((i) => (
-          <div key={i} className="snap-start bg-zinc-900/30 backdrop-blur-md rounded-[2.5rem] border border-zinc-800/50 overflow-hidden shadow-2xl transition-all duration-500 hover:border-zinc-700">
+        {posts.map((post, i) => (
+          <div key={post.id} className="snap-start bg-zinc-900/30 backdrop-blur-md rounded-[2.5rem] border border-zinc-800/50 overflow-hidden shadow-2xl transition-all duration-500 hover:border-zinc-700">
             <div className="p-6 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-tr from-zinc-700 to-zinc-900 rounded-full border border-zinc-700" />
+                <div className="w-12 h-12 bg-zinc-800 rounded-full border border-zinc-700 relative overflow-hidden">
+                   {/* Optimized Avatar Caching */}
+                   <Image src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${post.user}`} alt="avatar" fill />
+                </div>
                 <div>
-                  <div className="h-4 w-28 bg-zinc-800 rounded-full mb-1" />
-                  <div className="h-3 w-20 bg-zinc-900 rounded-full" />
+                  <div className="text-sm font-bold text-zinc-100 italic">@{post.user}</div>
+                  <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Sponsored Content</div>
                 </div>
               </div>
               <MoreHorizontal className="text-zinc-500 cursor-pointer" />
             </div>
             
-            {/* Post Content Area */}
-            <div className="aspect-square md:aspect-video bg-zinc-800/50 flex items-center justify-center border-y border-zinc-800/50">
-               <span className="text-zinc-600 font-mono text-sm uppercase tracking-[0.2em] opacity-50">Content_Media_{i}</span>
+            {/* Optimized Post Content Area */}
+            <div className="relative aspect-square md:aspect-video bg-zinc-900 border-y border-zinc-800/50">
+               <Image 
+                src={post.image} 
+                alt="Post Content"
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                className="object-cover"
+                priority={i < 2} // Caches and prioritizes the first two posts
+               />
             </div>
 
             <div className="p-6">
@@ -66,9 +85,12 @@ const MainFeed = () => {
                 </div>
                 <Bookmark size={28} className="hover:text-yellow-500 hover:scale-110 transition-all cursor-pointer" />
               </div>
-              <div className="space-y-3">
-                <div className="h-4 w-3/4 bg-zinc-800/50 rounded-full" />
-                <div className="h-4 w-1/2 bg-zinc-900/50 rounded-full" />
+              <div className="space-y-2">
+                <p className="text-sm text-zinc-300 leading-relaxed">
+                  <span className="font-bold text-white mr-2">{post.user}</span>
+                  Exploring the digital void. This content is optimized and cached for maximum speed.
+                </p>
+                <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest pt-2">2 hours ago</p>
               </div>
             </div>
           </div>

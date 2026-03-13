@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -7,14 +8,40 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  username      String   @unique
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
   password      String
   dob           DateTime
-  role          Role     @default(USER)
-  walletBalance Int      @default(0)
-  createdAt     DateTime @default(now())
+  role          Role      @default(USER)
+  walletBalance Int       @default(0)
+  image         String?   // For profile picture caching
+  createdAt     DateTime  @default(now())
+  
+  // Relations for Session management
+  sessions      Session[]
+  posts         Post[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  imageUrl  String   // Optimized via next/image
+  caption   String?
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([authorId])
 }
 
 enum Role {

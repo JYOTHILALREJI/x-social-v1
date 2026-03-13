@@ -9,13 +9,15 @@ import {
   Lock, 
   Eye, 
   EyeOff 
-} from 'lucide-react'; // Added Eye icons
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FcGoogle } from "react-icons/fc";
+// Import the Server Action
+import { login } from "@/app/lib/actions";
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [showPassword, setShowPassword] = useState(false); // State to toggle visibility
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '', dob: '' });
   const [ageError, setAgeError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -33,16 +35,14 @@ const AuthPage = () => {
 
   const handleGoogleSignIn = () => {
     setLoading(true);
+    // In production, this would trigger a real OAuth redirect
     setTimeout(() => router.push('/feed'), 1500);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Choose the right API endpoint
-    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup';
-    
+
     // Age check for Join mode
     if (!isLogin && calculateAge(formData.dob) < 18) {
       setAgeError(true);
@@ -51,26 +51,20 @@ const AuthPage = () => {
     }
 
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          dob: formData.dob // Only strictly needed for Signup
-        }),
-      });
+      // Create FormData to send to the Server Action
+      const data = new FormData();
+      data.append("email", formData.email);
+      data.append("password", formData.password);
+      if (!isLogin) data.append("dob", formData.dob);
 
-      const data = await res.json();
-
-      if (res.ok) {
-        // Success! Credentials are in Postgres.
-        router.push('/feed');
-      } else {
-        alert(data.error || "Authentication failed");
+      // Call Server Action
+      await login(data);
+    } catch (err: any) {
+      // Server Actions that use redirect() throw an error that Next.js handles.
+      // We only catch actual network or validation failures here.
+      if (err.message !== "NEXT_REDIRECT") {
+        alert("Authentication failed. Please check your credentials.");
       }
-    } catch (err) {
-      alert("Cannot connect to server. Ensure PostgreSQL is running.");
     } finally {
       setLoading(false);
     }
@@ -94,7 +88,6 @@ const AuthPage = () => {
 
         <AnimatePresence mode="wait">
           {ageError ? (
-            /* AGE RESTRICTION VIEW */
             <motion.div key="restricted" initial={{ rotateY: 180, opacity: 0 }} animate={{ rotateY: 0, opacity: 1 }} exit={{ rotateY: -180, opacity: 0 }} className="bg-zinc-900 p-10 rounded-[2.5rem] border-2 border-red-500/50 text-center">
                <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }} className="inline-block p-4 bg-red-500/10 rounded-full mb-4">
                  <ShieldAlert className="text-red-500" size={48} />
@@ -104,7 +97,6 @@ const AuthPage = () => {
                <button onClick={() => setAgeError(false)} className="w-full py-3 bg-zinc-800 text-white rounded-xl font-bold hover:bg-zinc-700 transition">Try Again</button>
             </motion.div>
           ) : (
-            /* MAIN CARD */
             <motion.div
               key={isLogin ? "login" : "signup"}
               initial={{ rotateY: isLogin ? -90 : 90, opacity: 0 }}
@@ -118,7 +110,6 @@ const AuthPage = () => {
                 <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold leading-none">The Future of Premium Connection</p>
               </div>
 
-              {/* GOOGLE SIGN IN */}
               <button onClick={handleGoogleSignIn} disabled={loading} className="w-full flex items-center justify-center gap-3 py-4 px-4 bg-white/5 border border-zinc-800 rounded-2xl text-sm font-bold hover:bg-white/10 transition-all mb-6 active:scale-95 disabled:opacity-50">
                 <FcGoogle size={22} /> Continue with Google
               </button>
@@ -135,16 +126,14 @@ const AuthPage = () => {
                   />
                 </div>
 
-                {/* PASSWORD FIELD WITH EYE TOGGLE */}
                 <div className="relative group">
                   <Lock className="absolute left-4 top-4 text-zinc-600 group-focus-within:text-white transition" size={18} />
                   <input 
-                    type={showPassword ? "text" : "password"} // Dynamic type
+                    type={showPassword ? "text" : "password"} 
                     placeholder="Password" required
                     className="w-full pl-12 pr-12 py-4 rounded-2xl bg-black border border-zinc-800 focus:border-white/20 outline-none transition text-sm text-white"
                     onChange={(e) => setFormData({...formData, password: e.target.value})}
                   />
-                  {/* Toggle Button */}
                   <button 
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
