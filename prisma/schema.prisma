@@ -1,11 +1,13 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma" // Standard for Prisma 7 custom output
 }
 
 datasource db {
   provider = "postgresql"
 }
+
+// --- AUTH & USER CORE ---
 
 model User {
   id            String    @id @default(cuid())
@@ -14,13 +16,28 @@ model User {
   password      String
   dob           DateTime
   role          Role      @default(USER)
-  walletBalance Int       @default(0)
-  image         String?   // For profile picture caching
+  walletBalance Int       @default(0) // Stored in cents/smallest unit
+  image         String?   // Profile Picture URL
+  bio           String?
+  gender        String?   // For dating matches
+  interestedIn  String?   // For dating algorithm
+  isOnline      Boolean   @default(false)
   createdAt     DateTime  @default(now())
-  
-  // Relations for Session management
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
   sessions      Session[]
   posts         Post[]
+  reels         Reel[]
+  sentTips      Transaction[] @relation("SentTips")
+  receivedTips  Transaction[] @relation("ReceivedTips")
+  subscriptions Subscription[] @relation("UserSubscriptions")
+  ownedContent  Subscription[] @relation("CreatorSubscribers")
+  
+  // Dating/Social
+  sentMatches     Match[] @relation("MatchRequester")
+  receivedMatches Match[] @relation("MatchReceiver")
+  interests       UserInterest[]
 }
 
 model Session {
@@ -33,9 +50,30 @@ model Session {
   @@index([userId])
 }
 
+enum Role {
+  USER
+  CREATOR
+}
+
+// --- CONTENT (SOCIAL) ---
+
 model Post {
   id        String   @id @default(cuid())
   imageUrl  String   // Optimized via next/image
+  caption   String?
+  isPremium Boolean  @default(false) // For locked content
+  price     Int?     // Price to unlock if not subscribed
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@index([authorId])
+}
+
+model Reel {
+  id        String   @id @default(cuid())
+  videoUrl  String
+  thumbnail String?
   caption   String?
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
@@ -44,7 +82,74 @@ model Post {
   @@index([authorId])
 }
 
-enum Role {
-  USER
-  CREATOR
+// --- MONETIZATION (FINANCE) ---
+
+model Transaction {
+  id          String          @id @default(cuid())
+  amount      Int
+  type        TransactionType
+  status      String          @default("COMPLETED")
+  senderId    String
+  sender      User            @relation("SentTips", fields: [senderId], references: [id])
+  receiverId  String
+  receiver    User            @relation("ReceivedTips", fields: [receiverId], references: [id])
+  createdAt   DateTime        @default(now())
+
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+model Subscription {
+  id          String   @id @default(cuid())
+  userId      String   // The fan
+  creatorId   String   // The creator
+  status      String   @default("ACTIVE")
+  expiresAt   DateTime
+  user        User     @relation("UserSubscriptions", fields: [userId], references: [id])
+  creator     User     @relation("CreatorSubscribers", fields: [creatorId], references: [id])
+
+  @@unique([userId, creatorId])
+}
+
+enum TransactionType {
+  TIP
+  SUBSCRIPTION
+  UNLOCK_POST
+  VIDEO_CALL
+}
+
+// --- DATING & INTERACTION ---
+
+model Match {
+  id          String      @id @default(cuid())
+  senderId    String
+  receiverId  String
+  status      MatchStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  
+  sender      User        @relation("MatchRequester", fields: [senderId], references: [id])
+  receiver    User        @relation("MatchReceiver", fields: [receiverId], references: [id])
+
+  @@unique([senderId, receiverId])
+}
+
+model Interest {
+  id    String @id @default(cuid())
+  name  String @unique
+  users UserInterest[]
+}
+
+model UserInterest {
+  userId     String
+  interestId String
+  user       User     @relation(fields: [userId], references: [id])
+  interest   Interest @relation(fields: [interestId], references: [id])
+
+  @@id([userId, interestId])
+}
+
+enum MatchStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
