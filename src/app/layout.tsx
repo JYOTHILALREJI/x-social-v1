@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className="antialiased bg-black text-white overflow-x-hidden"
         suppressHydrationWarning
       >
-        {!shouldHideNavbar && <Navbar />}
+        {!shouldHideNavbar}
 
         {/* We use flex and h-screen here to ensure the children (like Messages) 
             can fill the remaining space without creating double scrollbars.

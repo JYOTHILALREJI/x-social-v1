@@ -13,11 +13,10 @@ const LandingPage = () => {
 
   // AUTH REDIRECT LOGIC
   useEffect(() => {
-    // Check if a user is already logged in (using your 'token' cookie)
-    const isLoggedIn = document.cookie.includes("token"); 
+    // Change "token" to "auth_session" to match your middleware
+    const isLoggedIn = document.cookie.includes("auth_session"); 
     
     if (isLoggedIn) {
-      // If logged in, skip the landing page and go straight to the feed
       router.replace("/feed");
     } else {
       setIsCheckingAuth(false);
