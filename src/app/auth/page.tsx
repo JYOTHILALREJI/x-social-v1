@@ -12,8 +12,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FcGoogle } from "react-icons/fc";
-// Import the Server Action
-import { login } from "@/app/lib/actions";
+import { login, register } from "@/app/lib/actions"; // Import both actions
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -51,19 +50,22 @@ const AuthPage = () => {
     }
 
     try {
-      // Create FormData to send to the Server Action
       const data = new FormData();
       data.append("email", formData.email);
       data.append("password", formData.password);
-      if (!isLogin) data.append("dob", formData.dob);
 
-      // Call Server Action
-      await login(data);
+      if (isLogin) {
+        // Call the login Server Action
+        await login(data);
+      } else {
+        // Call the register Server Action
+        data.append("dob", formData.dob);
+        await register(data);
+      }
     } catch (err: any) {
-      // Server Actions that use redirect() throw an error that Next.js handles.
-      // We only catch actual network or validation failures here.
-      if (err.message !== "NEXT_REDIRECT") {
-        alert("Authentication failed. Please check your credentials.");
+      // Next.js redirect() throws an error that should be ignored by the UI
+      if (!err.message.includes("NEXT_REDIRECT")) {
+        alert(err.message || "Authentication failed. Please check your credentials.");
       }
     } finally {
       setLoading(false);
@@ -82,8 +84,18 @@ const AuthPage = () => {
             animate={{ x: isLogin ? '0%' : '100%', width: '50%' }}
             transition={{ type: "spring", stiffness: 350, damping: 30 }}
           />
-          <button onClick={() => {setIsLogin(true); setAgeError(false);}} className={`flex-1 py-2.5 text-xs uppercase tracking-widest font-black z-10 transition-colors duration-300 ${isLogin ? 'text-black' : 'text-zinc-500'}`}>Sign In</button>
-          <button onClick={() => {setIsLogin(false); setAgeError(false);}} className={`flex-1 py-2.5 text-xs uppercase tracking-widest font-black z-10 transition-colors duration-300 ${!isLogin ? 'text-black' : 'text-zinc-500'}`}>Join</button>
+          <button 
+            onClick={() => {setIsLogin(true); setAgeError(false);}} 
+            className={`flex-1 py-2.5 text-xs uppercase tracking-widest font-black z-10 transition-colors duration-300 ${isLogin ? 'text-black' : 'text-zinc-500'}`}
+          >
+            Sign In
+          </button>
+          <button 
+            onClick={() => {setIsLogin(false); setAgeError(false);}} 
+            className={`flex-1 py-2.5 text-xs uppercase tracking-widest font-black z-10 transition-colors duration-300 ${!isLogin ? 'text-black' : 'text-zinc-500'}`}
+          >
+            Join
+          </button>
         </div>
 
         <AnimatePresence mode="wait">
@@ -154,7 +166,11 @@ const AuthPage = () => {
                   </motion.div>
                 )}
 
-                <button type="submit" disabled={loading} className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-purple-500 hover:text-white transition-all active:scale-95 disabled:opacity-50">
+                <button 
+                  type="submit" 
+                  disabled={loading} 
+                  className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-purple-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                >
                   {loading ? "Processing..." : isLogin ? "Login Now" : "Create Account"} 
                   {!loading && <ChevronRight size={18} />}
                 </button>

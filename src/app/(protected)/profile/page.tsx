@@ -1,39 +1,43 @@
-import React from 'react';
-import Link from 'next/link';
+"use client";
+import React, { useState } from 'react';
 import Image from 'next/image';
-import { prisma } from "@/app/lib/prisma";
-import { Settings, MapPin, Link as LinkIcon, Heart, MessageSquare, PlusCircle } from 'lucide-react';
+import Link from 'next/link';
+import { 
+  Settings, MapPin, Link as LinkIcon, Heart, 
+  MessageSquare, PlusCircle, Grid, Play, Upload, Loader2
+} from 'lucide-react';
+import CreatorOnboarding from "@/components/CreatorOnboarding";
 
-const ProfilePage = async () => {
-  // Logic to get the current user session would go here in Phase 2
-  // For now, we fetch the 'Fan' user created in your seed file to demonstrate
-  const user = await prisma.user.findUnique({
-    where: { email: "fan@xsocial.com" }, // Replace with session-based email later
-    include: {
-      posts: {
-        orderBy: { createdAt: 'desc' }
-      },
-      _count: {
-        select: { posts: true }
-      }
-    }
-  });
-
-  if (!user) return <div className="p-20 text-center">User not found</div>;
+const ProfilePage = () => {
+  const [activeTab, setActiveTab] = useState<'posts' | 'reels'>('posts');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // MOCK DATA: In your actual app, fetch this user from Prisma via a Server Component
+  const user = {
+    username: "scarlett_rose",
+    role: "USER", 
+    creatorStatus: "PENDING", // Logic: NONE, PENDING, APPROVED, REJECTED
+    bio: "Creating exclusive content for my top fans 💋",
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
+    posts: [], 
+    reels: [],
+    _count: { posts: 0, reels: 0 }
+  };
 
   const isCreator = user.role === 'CREATOR';
+  const isPending = user.creatorStatus === 'PENDING';
 
   return (
-    <div className="w-full min-h-screen bg-black text-white px-4 md:px-10 lg:px-16 pt-10">
+    <div className="w-full min-h-screen bg-black text-white px-4 md:px-10 lg:px-16 pt-10 pb-32">
+      {/* Header Section */}
       <div className="flex flex-col md:flex-row items-center md:items-start gap-12 mb-12 border-b border-zinc-900 pb-12">
-        {/* Profile Image with caching optimization */}
-        <div className="w-32 h-32 md:w-48 md:h-48 rounded-full bg-gradient-to-tr from-zinc-800 to-zinc-950 flex-shrink-0 border border-zinc-800 flex items-center justify-center relative overflow-hidden">
+        <div className="w-32 h-32 md:w-48 md:h-48 rounded-full bg-zinc-900 flex-shrink-0 border border-zinc-800 relative overflow-hidden">
            {user.image ? (
              <Image src={user.image} alt="Profile" fill className="object-cover" />
            ) : (
-             <span className="text-4xl font-black text-zinc-700">
+             <div className="w-full h-full flex items-center justify-center text-4xl font-black text-zinc-700">
                {user.username.substring(0, 2).toUpperCase()}
-             </span>
+             </div>
            )}
         </div>
         
@@ -41,10 +45,9 @@ const ProfilePage = async () => {
           <div className="flex flex-col md:flex-row items-center gap-6">
             <h1 className="text-3xl font-bold tracking-tight">{user.username}</h1>
             <div className="flex gap-3">
-              <button className="px-8 py-2 bg-white text-black rounded-xl font-bold text-sm hover:bg-zinc-200 transition-colors">
+              <button className="px-8 py-2 bg-zinc-900 text-white border border-zinc-800 rounded-xl font-bold text-sm hover:bg-zinc-800 transition-colors">
                 Edit Profile
               </button>
-              
               <Link href="/settings">
                 <button className="p-2 bg-zinc-900 rounded-xl border border-zinc-800 hover:bg-zinc-800 transition-colors">
                   <Settings size={22} />
@@ -52,59 +55,66 @@ const ProfilePage = async () => {
               </Link>
             </div>
           </div>
-          
           <div className="flex justify-center md:justify-start gap-12 text-lg">
             <span><strong className="text-white">{user._count.posts}</strong> <span className="text-zinc-500 text-sm ml-1">posts</span></span>
             <span><strong className="text-white">0</strong> <span className="text-zinc-500 text-sm ml-1">followers</span></span>
             <span><strong className="text-white">0</strong> <span className="text-zinc-500 text-sm ml-1">following</span></span>
           </div>
-
           <div className="max-w-lg">
-            <p className="font-bold text-xl text-zinc-100">{user.username}</p>
-            <p className="text-zinc-400 mt-2 leading-relaxed">{user.bio || "No bio yet."}</p>
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-6 mt-4 text-zinc-500 text-xs">
-              <span className="flex items-center gap-2"><MapPin size={16} /> Dubai, UAE</span>
-              <a href="#" className="flex items-center gap-2 text-blue-400 hover:underline"><LinkIcon size={16} /> x-social.ai</a>
-            </div>
+            <p className="text-zinc-400 leading-relaxed">{user.bio || "No bio yet."}</p>
           </div>
         </div>
       </div>
 
-      {/* Logic for Non-Creators */}
+      {/* Main Content Area */}
       {!isCreator ? (
-        <div className="w-full py-20 flex flex-col items-center justify-center border-2 border-dashed border-zinc-900 rounded-[3rem] bg-zinc-950/50">
-          <PlusCircle size={48} className="text-zinc-700 mb-4" />
-          <h2 className="text-2xl font-black italic tracking-tighter uppercase mb-2">Ready to earn?</h2>
-          <p className="text-zinc-500 text-sm mb-8 text-center px-4">Start sharing exclusive content and monetizing your profile.</p>
-          <button className="px-10 py-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-2xl font-black italic tracking-tighter uppercase hover:scale-105 transition-transform">
-            Become a Creator
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-1 md:gap-6 lg:gap-8 pb-32">
-          {user.posts.length > 0 ? (
-            user.posts.map((post) => (
-              <div key={post.id} className="group relative aspect-square bg-zinc-900/50 rounded-2xl overflow-hidden cursor-pointer border border-zinc-800/50 transition-all hover:scale-[1.02]">
-                <Image 
-                  src={post.imageUrl} 
-                  alt="Post" 
-                  fill 
-                  className="object-cover" 
-                />
-                {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-8">
-                  <span className="flex items-center gap-2 font-bold text-lg"><Heart fill="white" size={24} /> 0</span>
-                  <span className="flex items-center gap-2 font-bold text-lg"><MessageSquare fill="white" size={24} /> 0</span>
-                </div>
+        <div className={`w-full py-20 flex flex-col items-center justify-center border-2 border-dashed rounded-[3rem] transition-all ${isPending ? 'border-purple-500/50 bg-purple-500/5' : 'border-zinc-900 bg-zinc-950/50'}`}>
+          {isPending ? (
+            <div className="flex flex-col items-center animate-in fade-in zoom-in duration-500">
+              <div className="relative">
+                <Loader2 size={48} className="text-purple-500 mb-4 animate-spin" />
+                <div className="absolute inset-0 blur-xl bg-purple-500/20 rounded-full animate-pulse" />
               </div>
-            ))
-          ) : (
-            <div className="col-span-3 py-20 text-center text-zinc-600 font-bold uppercase tracking-widest text-xs italic">
-              No posts yet
+              <h2 className="text-2xl font-black italic tracking-tighter uppercase mb-2 text-purple-500">Verification in Progress</h2>
+              <p className="text-zinc-500 text-sm mb-8 text-center px-4 max-w-md italic">
+                Our safety team is currently reviewing your ID and categories. This usually takes less than 24 hours.
+              </p>
+              <div className="px-10 py-4 bg-purple-500/20 text-purple-400 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-purple-500/30">
+                Application Submitted & Locked
+              </div>
             </div>
+          ) : (
+            <>
+              <PlusCircle size={48} className="text-zinc-700 mb-4" />
+              <h2 className="text-2xl font-black italic tracking-tighter uppercase mb-2 text-white">Ready to earn?</h2>
+              <p className="text-zinc-500 text-sm mb-8 text-center px-4 max-w-md">
+                Start sharing exclusive content and monetizing your profile by becoming a verified creator.
+              </p>
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="px-10 py-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-2xl font-black italic tracking-tighter uppercase hover:scale-105 transition-transform shadow-[0_0_30px_-5px_rgba(236,72,153,0.3)]"
+              >
+                Become a Creator
+              </button>
+            </>
           )}
         </div>
+      ) : (
+        /* CREATOR VIEW: Tabs */
+        <div className="space-y-8">
+          <div className="flex justify-center border-b border-zinc-900">
+             <button onClick={() => setActiveTab('posts')} className={`flex items-center gap-2 px-12 py-4 font-bold uppercase tracking-widest text-xs transition-all border-b-2 ${activeTab === 'posts' ? 'border-white text-white' : 'border-transparent text-zinc-500 hover:text-white'}`}>
+              <Grid size={18} /> Posts
+            </button>
+            <button onClick={() => setActiveTab('reels')} className={`flex items-center gap-2 px-12 py-4 font-bold uppercase tracking-widest text-xs transition-all border-b-2 ${activeTab === 'reels' ? 'border-white text-white' : 'border-transparent text-zinc-500 hover:text-white'}`}>
+              <Play size={18} /> Reels
+            </button>
+          </div>
+          {/* Posts/Reels Grid Rendering Logic... */}
+        </div>
       )}
+
+      <CreatorOnboarding isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 };

@@ -1,13 +1,13 @@
 // prisma/schema.prisma
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js" // FIXED: Must be prisma-client-js
   output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  //url      = env("DATABASE_URL")
 }
 
 model User {
@@ -17,6 +17,13 @@ model User {
   password      String
   dob           DateTime
   role          Role      @default(USER)
+
+  // Creator Verification Fields
+  creatorStatus CreatorStatus @default(NONE)
+  creatorProfile  CreatorProfile?
+  idProofUrl    String?       
+  verifiedAt    DateTime?
+
   walletBalance Int       @default(0)
   image         String?
   bio           String?
@@ -37,6 +44,17 @@ model User {
   aiConversations AIConversation[]
 }
 
+model CreatorProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  categories        String[] // Lingerie, Nudity, etc.
+  idProofUrl        String   // URL from S3/Cloudinary
+  selfieUrl         String   // URL from S3/Cloudinary
+  status            Status   @default(PENDING)
+  createdAt         DateTime @default(now())
+}
+
 model Match {
   id         String      @id @default(cuid())
   senderId   String
@@ -53,8 +71,8 @@ model Match {
 model AIConversation {
   id        String    @id @default(cuid())
   userId    String
-  persona   String    // e.g., "Supportive", "Flirty", "Professional"
-  messages  Json      // Array of message objects
+  persona   String    
+  messages  Json      
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -76,18 +94,12 @@ model UserInterest {
   @@id([userId, interestId])
 }
 
-enum MatchStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-}
-
 model Post {
   id        String   @id @default(cuid())
   imageUrl  String
   caption   String?
   isPremium Boolean  @default(false)
-  price     Int?     // Price in cents
+  price     Int?     
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
@@ -119,4 +131,24 @@ model Session {
 enum Role {
   USER
   CREATOR
+  ADMIN
+}
+
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CreatorStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MatchStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }

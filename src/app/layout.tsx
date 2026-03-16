@@ -7,33 +7,30 @@ import Navbar from "../components/Navbar";
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hideNavbarPaths = ["/", "/auth"]; 
-  const shouldHideNavbar = hideNavbarPaths.includes(pathname);
+  const isAdminPath = pathname.startsWith("/admin"); 
+  const shouldHideNavbar = hideNavbarPaths.includes(pathname) || isAdminPath;
 
   return (
     <html lang="en">
-      {/* suppressHydrationWarning fixes the body attribute mismatch 
-          caused by browser extensions (like the one in your error log).
-      */}
       <body 
-        className="antialiased bg-black text-white overflow-x-hidden"
+        className="antialiased bg-black text-white overflow-x-hidden min-h-screen"
         suppressHydrationWarning
       >
-        {!shouldHideNavbar}
+        {/* Render Navbar only if not on hidden paths  */}
+        {!shouldHideNavbar && <Navbar />}
 
-        {/* We use flex and h-screen here to ensure the children (like Messages) 
-            can fill the remaining space without creating double scrollbars.
-        */}
-        <div className={shouldHideNavbar ? "" : "min-h-screen pb-24 md:pb-0 md:pl-20 lg:pl-64 flex flex-col"}>
-          <AnimatePresence mode="wait">
+        <div className={shouldHideNavbar ? "w-full min-h-screen" : "min-h-screen md:pl-20 lg:pl-64 flex flex-col w-full"}>
+          <AnimatePresence mode="popLayout"> {/* Changed to popLayout to maintain width during transitions */}
             <motion.main
               key={pathname}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0 }} // Removed y: 10 to prevent vertical jumping
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
               className="w-full flex-1"
             >
-              <div className="w-full h-full">
+              {/* Ensure this inner div forces full width immediately */}
+              <div className="w-full h-full min-w-full">
                 {children}
               </div>
             </motion.main>
