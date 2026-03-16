@@ -1,5 +1,6 @@
+// components/Navbar.tsx
 "use client";
-import { Home, Search, PlayCircle, User, MessageCircle } from 'lucide-react';
+import { Home, Search, PlayCircle, User, MessageCircle, Heart, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -12,6 +13,8 @@ const Navbar = () => {
     { href: '/feed', icon: Home, label: 'Home' },
     { href: '/search', icon: Search, label: 'Search' },
     { href: '/reels', icon: PlayCircle, label: 'Reels' },
+    { href: '/dating', icon: Heart, label: 'Dating' }, // New Dating Section
+    { href: '/ai-companion', icon: Sparkles, label: 'AI Companion' }, // New AI Section
     { href: '/messages', icon: MessageCircle, label: 'Messages' },
     { href: '/profile', icon: User, label: 'Profile' },
   ];

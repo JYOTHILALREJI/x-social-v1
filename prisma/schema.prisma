@@ -1,13 +1,14 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client"
-  output   = "../src/generated/prisma" // Standard for Prisma 7 custom output
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
-
-// --- AUTH & USER CORE ---
 
 model User {
   id            String    @id @default(cuid())
@@ -16,121 +17,48 @@ model User {
   password      String
   dob           DateTime
   role          Role      @default(USER)
-  walletBalance Int       @default(0) // Stored in cents/smallest unit
-  image         String?   // Profile Picture URL
+  walletBalance Int       @default(0)
+  image         String?
   bio           String?
-  gender        String?   // For dating matches
-  interestedIn  String?   // For dating algorithm
-  isOnline      Boolean   @default(false)
+  gender        String?
+  interestedIn  String?
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relationships
+  
   sessions      Session[]
   posts         Post[]
   reels         Reel[]
-  sentTips      Transaction[] @relation("SentTips")
-  receivedTips  Transaction[] @relation("ReceivedTips")
-  subscriptions Subscription[] @relation("UserSubscriptions")
-  ownedContent  Subscription[] @relation("CreatorSubscribers")
   
-  // Dating/Social
-  sentMatches     Match[] @relation("MatchRequester")
-  receivedMatches Match[] @relation("MatchReceiver")
+  // Dating Relationships
+  sentMatches     Match[]        @relation("SentMatches")
+  receivedMatches Match[]        @relation("ReceivedMatches")
   interests       UserInterest[]
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-enum Role {
-  USER
-  CREATOR
-}
-
-// --- CONTENT (SOCIAL) ---
-
-model Post {
-  id        String   @id @default(cuid())
-  imageUrl  String   // Optimized via next/image
-  caption   String?
-  isPremium Boolean  @default(false) // For locked content
-  price     Int?     // Price to unlock if not subscribed
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
   
-  @@index([authorId])
+  // AI Companion Relationship
+  aiConversations AIConversation[]
 }
-
-model Reel {
-  id        String   @id @default(cuid())
-  videoUrl  String
-  thumbnail String?
-  caption   String?
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@index([authorId])
-}
-
-// --- MONETIZATION (FINANCE) ---
-
-model Transaction {
-  id          String          @id @default(cuid())
-  amount      Int
-  type        TransactionType
-  status      String          @default("COMPLETED")
-  senderId    String
-  sender      User            @relation("SentTips", fields: [senderId], references: [id])
-  receiverId  String
-  receiver    User            @relation("ReceivedTips", fields: [receiverId], references: [id])
-  createdAt   DateTime        @default(now())
-
-  @@index([senderId])
-  @@index([receiverId])
-}
-
-model Subscription {
-  id          String   @id @default(cuid())
-  userId      String   // The fan
-  creatorId   String   // The creator
-  status      String   @default("ACTIVE")
-  expiresAt   DateTime
-  user        User     @relation("UserSubscriptions", fields: [userId], references: [id])
-  creator     User     @relation("CreatorSubscribers", fields: [creatorId], references: [id])
-
-  @@unique([userId, creatorId])
-}
-
-enum TransactionType {
-  TIP
-  SUBSCRIPTION
-  UNLOCK_POST
-  VIDEO_CALL
-}
-
-// --- DATING & INTERACTION ---
 
 model Match {
-  id          String      @id @default(cuid())
-  senderId    String
-  receiverId  String
-  status      MatchStatus @default(PENDING)
-  createdAt   DateTime    @default(now())
-  
-  sender      User        @relation("MatchRequester", fields: [senderId], references: [id])
-  receiver    User        @relation("MatchReceiver", fields: [receiverId], references: [id])
+  id         String      @id @default(cuid())
+  senderId   String
+  receiverId String
+  status     MatchStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+
+  sender   User @relation("SentMatches", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedMatches", fields: [receiverId], references: [id])
 
   @@unique([senderId, receiverId])
+}
+
+model AIConversation {
+  id        String    @id @default(cuid())
+  userId    String
+  persona   String    // e.g., "Supportive", "Flirty", "Professional"
+  messages  Json      // Array of message objects
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Interest {
@@ -152,4 +80,43 @@ enum MatchStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  imageUrl  String
+  caption   String?
+  isPremium Boolean  @default(false)
+  price     Int?     // Price in cents
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([authorId])
+}
+
+model Reel {
+  id        String   @id @default(cuid())
+  videoUrl  String
+  caption   String?
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([authorId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum Role {
+  USER
+  CREATOR
 }
