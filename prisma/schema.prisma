@@ -14,6 +14,7 @@ model User {
   id            String    @id @default(cuid())
   email         String    @unique
   username      String    @unique
+  name          String?
   password      String
   dob           DateTime
   role          Role      @default(USER)
@@ -42,6 +43,20 @@ model User {
   
   // AI Companion Relationship
   aiConversations AIConversation[]
+
+  follows   Follow[] @relation("follower") // People THIS user follows
+  followers Follow[] @relation("following") // People following THIS user
+  followersCount Int      @default(0)
+  followingCount Int      @default(0)
+}
+
+model Follow {
+  follower    User   @relation("follower", fields: [followerId], references: [id])
+  followerId  String
+  following   User   @relation("following", fields: [followingId], references: [id])
+  followingId String
+
+  @@id([followerId, followingId])
 }
 
 model CreatorProfile {
@@ -111,6 +126,8 @@ model Reel {
   id        String   @id @default(cuid())
   videoUrl  String
   caption   String?
+  isPremium Boolean  @default(false)
+  price     Int?     
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

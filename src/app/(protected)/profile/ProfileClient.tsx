@@ -7,6 +7,8 @@ import {
   Settings, PlusCircle, Grid, Play, Loader2, Plus, User as UserIcon 
 } from 'lucide-react';
 import CreatorOnboarding from "@/components/CreatorOnboarding";
+import CreateContentModal from "@/components/CreateContentModal";
+import UserSettings from "@/components/UserSettings";
 
 interface ProfileClientProps {
   user: {
@@ -25,10 +27,13 @@ interface ProfileClientProps {
 const ProfileClient = ({ user }: ProfileClientProps) => {
   const [activeTab, setActiveTab] = useState<'posts' | 'reels'>('posts');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createType, setCreateType] = useState<'posts' | 'reels'>('posts');
   
   const isCreator = user.role === 'CREATOR';
+  const isVerifiedCreator = user.creatorStatus === 'APPROVED';
   const isPending = user.creatorStatus === 'PENDING';
-  const DEFAULT_AVATAR = "https://share.google/1cRArpx9162i0UYdc";
+  const DEFAULT_AVATAR = "/default_user_profile/default-avatar.png";
 
   return (
     <div className="w-full min-h-screen bg-black text-white px-6 md:px-12 pt-10 pb-32">
@@ -50,7 +55,7 @@ const ProfileClient = ({ user }: ProfileClientProps) => {
           <div className="flex items-center justify-between">
             <div className="flex flex-col md:flex-row md:items-center gap-4">
               <h1 className="text-3xl font-black italic uppercase tracking-tighter">{user.username}</h1>
-              {isCreator && (
+              {isVerifiedCreator && (
                 <span className="px-3 py-1 bg-purple-500/10 text-purple-500 text-[10px] font-black uppercase rounded-full border border-purple-500/20">
                   Verified Creator
                 </span>
@@ -58,9 +63,11 @@ const ProfileClient = ({ user }: ProfileClientProps) => {
             </div>
             
             {/* Settings Link */}
-            <Link href="/settings" className="p-3 bg-zinc-900 hover:bg-zinc-800 rounded-2xl border border-zinc-800 transition-all">
-              <Settings size={20} className="text-zinc-400" />
-            </Link>
+            {isVerifiedCreator && (
+              <Link href="/settings" className="p-3 bg-zinc-900 hover:bg-zinc-800 rounded-2xl border border-zinc-800 transition-all">
+                <Settings size={20} className="text-zinc-400" />
+              </Link>
+            )}
           </div>
 
           <div className="flex justify-center md:justify-start gap-10">
@@ -75,28 +82,20 @@ const ProfileClient = ({ user }: ProfileClientProps) => {
       </div>
 
       {/* --- BODY SECTION --- */}
-      {!isCreator ? (
-        /* USER VIEW: Onboarding/Verification */
-        <div className={`w-full py-20 flex flex-col items-center justify-center border-2 border-dashed rounded-[3rem] 
-          ${isPending ? 'border-purple-500/50 bg-purple-500/5' : 'border-zinc-900 bg-zinc-950/50'}`}>
-          
-          {isPending ? (
-            <div className="text-center">
-              <Loader2 size={48} className="text-purple-500 mb-4 animate-spin mx-auto" />
+      {!isVerifiedCreator ? (
+        <div className="pt-8 flex flex-col items-center">
+          {isPending && (
+            <div className="w-full lg:w-[90%] py-12 flex flex-col items-center justify-center border border-dashed border-purple-500/50 bg-purple-500/5 rounded-[3rem] mb-12">
+              <Loader2 size={40} className="text-purple-500 mb-4 animate-spin mx-auto" />
               <h2 className="text-xl font-black uppercase tracking-tighter text-purple-500">Reviewing ID Proof</h2>
               <p className="text-zinc-500 text-xs mt-2">Hang tight! Your creator dashboard is being prepared.</p>
             </div>
-          ) : (
-            <>
-              <PlusCircle size={48} className="text-zinc-800 mb-4" />
-              <button 
-                onClick={() => setIsModalOpen(true)}
-                className="px-10 py-4 bg-white text-black rounded-2xl font-black uppercase italic hover:scale-105 transition-transform"
-              >
-                Become a Creator
-              </button>
-            </>
           )}
+
+          <UserSettings 
+            onBecomeCreatorClick={() => setIsModalOpen(true)} 
+            showBecomeCreator={!isPending} 
+          />
         </div>
       ) : (
         /* CREATOR VIEW: Dashboard with Tabs */
@@ -119,9 +118,17 @@ const ProfileClient = ({ user }: ProfileClientProps) => {
 
           {/* Action Button at top of tab */}
           <div className="flex justify-end">
-             <button className="flex items-center gap-2 px-6 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all">
-                <Plus size={14} /> New {activeTab === 'posts' ? 'Post' : 'Reel'}
-             </button>
+             {user.creatorStatus === 'APPROVED' && (
+               <button 
+                  onClick={() => {
+                    setCreateType(activeTab);
+                    setIsCreateModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-6 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all"
+               >
+                  <Plus size={14} /> New {activeTab === 'posts' ? 'Post' : 'Reel'}
+               </button>
+             )}
           </div>
 
           {/* Grid View */}
@@ -152,6 +159,12 @@ const ProfileClient = ({ user }: ProfileClientProps) => {
       )}
 
       <CreatorOnboarding isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <CreateContentModal 
+        isOpen={isCreateModalOpen} 
+        onClose={() => setIsCreateModalOpen(false)} 
+        type={createType} 
+        authorId={user.id} 
+      />
     </div>
   );
 };

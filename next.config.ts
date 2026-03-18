@@ -3,26 +3,15 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     // remotePatterns is the modern, secure way to allow external images
+    // Setting to ** allows images from any external domain which is required for arbitrary user input URLs
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
-        pathname: '**',
+        hostname: '**',
       },
       {
-        protocol: 'https',
-        hostname: 'api.dicebear.com',
-        pathname: '**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'v1.bg.ot7.me', // For your Reels video thumbnails/placeholders
-        pathname: '**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'share.google',
-        pathname: '**',
+        protocol: 'http',
+        hostname: '**',
       },
     ],
     // This allows Next.js to cache optimized images for up to 60 seconds 

@@ -6,8 +6,7 @@ async function main() {
 
   // 1. Cleanup existing data (be careful in production!)
   await prisma.match.deleteMany();
-  await prisma.transaction.deleteMany();
-  await prisma.subscription.deleteMany();
+
   await prisma.post.deleteMany();
   await prisma.reel.deleteMany();
   await prisma.session.deleteMany();
@@ -33,6 +32,7 @@ async function main() {
       password: hashedPassword,
       dob: new Date("1998-05-15"),
       role: "CREATOR",
+      creatorStatus: "APPROVED",
       walletBalance: 50000, // $500.00
       bio: "Creating exclusive content for my top fans 💋 | Digital Artist",
       gender: "Female",
