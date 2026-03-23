@@ -18,7 +18,13 @@ export default async function SettingsPage() {
       user: {
         select: {
           id: true,
+          username: true,
           creatorStatus: true,
+          creatorProfile: {
+            select: {
+              subscriptionPrice: true
+            }
+          }
         }
       }
     }
@@ -33,5 +39,5 @@ export default async function SettingsPage() {
     redirect("/profile");
   }
 
-  return <SettingsClientContainer />;
+  return <SettingsClientContainer user={session.user} />;
 }

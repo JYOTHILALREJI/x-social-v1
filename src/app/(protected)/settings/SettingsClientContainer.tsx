@@ -5,7 +5,18 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import UserSettings from '@/components/UserSettings';
 
-const SettingsClientContainer = () => {
+interface SettingsClientContainerProps {
+  user: {
+    id: string;
+    username: string;
+    creatorStatus: string;
+    creatorProfile: {
+      subscriptionPrice: number;
+    } | null;
+  };
+}
+
+const SettingsClientContainer = ({ user }: SettingsClientContainerProps) => {
   const router = useRouter();
 
   return (
@@ -22,7 +33,7 @@ const SettingsClientContainer = () => {
       </div>
 
       {/* 2. Main Content Container using Modular Component */}
-      <UserSettings showBecomeCreator={false} />
+      <UserSettings showBecomeCreator={false} user={user} />
     </div>
   );
 };

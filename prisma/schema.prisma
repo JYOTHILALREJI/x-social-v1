@@ -48,6 +48,7 @@ model User {
   followers Follow[] @relation("following") // People following THIS user
   followersCount Int      @default(0)
   followingCount Int      @default(0)
+  revenues      Revenue[]
 }
 
 model Follow {
@@ -66,8 +67,20 @@ model CreatorProfile {
   categories        String[] // Lingerie, Nudity, etc.
   idProofUrl        String   // URL from S3/Cloudinary
   selfieUrl         String   // URL from S3/Cloudinary
+  subscriptionPrice Int      @default(0)
   status            Status   @default(PENDING)
   createdAt         DateTime @default(now())
+}
+
+model Revenue {
+  id        String   @id @default(cuid())
+  creatorId String
+  amount    Int
+  type      String   // e.g., "SUBSCRIPTION", "POST_PURCHASE", "REEL_PURCHASE"
+  createdAt DateTime @default(now())
+  creator   User     @relation(fields: [creatorId], references: [id])
+
+  @@index([creatorId])
 }
 
 model Match {

@@ -2,19 +2,45 @@
 
 import React, { useState } from 'react';
 import { 
-  User, Lock, Bell, Eye, HelpCircle,
+  User, Lock, Bell, Eye, HelpCircle, DollarSign,
   LogOut, ChevronRight, Moon, ShieldCheck, AlertCircle, PlusCircle 
 } from 'lucide-react';
 import { handleLogoutAction } from "@/app/actions/auth";
 
+import { updateSubscriptionPrice } from '@/app/actions/creator-actions';
+
 interface UserSettingsProps {
   onBecomeCreatorClick?: () => void;
   showBecomeCreator?: boolean;
+  user?: {
+    id: string;
+    username: string;
+    creatorStatus: string;
+    creatorProfile: {
+      subscriptionPrice: number;
+    } | null;
+  };
 }
 
-export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator }: UserSettingsProps) {
+export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator, user }: UserSettingsProps) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [subPrice, setSubPrice] = useState(user?.creatorProfile?.subscriptionPrice || 0);
+  const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+
+  const isVerifiedCreator = user?.creatorStatus === 'APPROVED';
+
+  const handleUpdatePrice = async () => {
+    if (!user) return;
+    setIsUpdatingPrice(true);
+    const res = await updateSubscriptionPrice(user.id, subPrice);
+    setIsUpdatingPrice(false);
+    if (res.success) {
+      alert("Subscription price updated successfully!");
+    } else {
+      alert(res.error || "Failed to update price");
+    }
+  };
 
   const settingsSections = [
     {
@@ -82,6 +108,56 @@ export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator }
         </div>
       ))}
 
+      {isVerifiedCreator && (
+        <div className="space-y-4">
+          <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] ml-4">
+            Creator Settings
+          </h2>
+          <div className="bg-purple-500/5 border border-purple-500/20 rounded-[2.5rem] p-8 space-y-8 backdrop-blur-md">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div className="space-y-1">
+                <h3 className="text-xl font-black uppercase italic tracking-tighter text-purple-500">Subscription Price</h3>
+                <p className="text-zinc-500 text-xs font-medium">Set your monthly subscription price for followers.</p>
+              </div>
+              <div className="flex items-center gap-4 w-full md:w-auto">
+                <div className="relative flex-1 md:w-32">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-500 font-black">$</span>
+                  <input 
+                    type="number" 
+                    value={subPrice}
+                    onChange={(e) => setSubPrice(Number(e.target.value))}
+                    className="w-full pl-8 pr-4 py-4 bg-black border border-purple-500/30 rounded-2xl text-white font-black focus:outline-none focus:border-purple-500 transition-all"
+                    placeholder="0"
+                  />
+                </div>
+                <button 
+                  onClick={handleUpdatePrice}
+                  disabled={isUpdatingPrice}
+                  className="px-8 py-4 bg-purple-600 hover:bg-purple-500 text-white font-black uppercase italic rounded-2xl disabled:opacity-50 transition-all shadow-lg shadow-purple-500/20 shrink-0"
+                >
+                  {isUpdatingPrice ? "Saving..." : "Save Amount"}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-purple-500/10">
+               <CreatorOptionCard 
+                 title="Payout Method" 
+                 desc="Manage where you receive your earnings" 
+                 status="Verified" 
+                 icon={<DollarSign size={20} className="text-purple-400" />} 
+               />
+               <CreatorOptionCard 
+                 title="Tax Information" 
+                 desc="Required for processing large payouts" 
+                 status="Complete" 
+                 icon={<ShieldCheck size={20} className="text-purple-400" />} 
+               />
+            </div>
+          </div>
+        </div>
+      )}
+
       <button 
         onClick={() => setShowLogoutModal(true)} 
         className="w-fit flex items-center gap-4 px-8 py-5 text-red-500 font-black uppercase italic hover:bg-red-500/10 rounded-[2rem] mt-4 transition-all"
@@ -121,3 +197,15 @@ export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator }
     </div>
   );
 }
+const CreatorOptionCard = ({ title, desc, status, icon }: { title: string, desc: string, status: string, icon: React.ReactNode }) => (
+  <div className="flex items-center justify-between p-6 bg-black border border-purple-500/10 rounded-3xl hover:border-purple-500/30 hover:bg-purple-500/5 transition-all group">
+    <div className="flex items-center gap-4">
+      <div className="p-3 bg-purple-500/10 rounded-2xl group-hover:scale-110 transition-transform">{icon}</div>
+      <div>
+        <p className="text-sm font-black uppercase tracking-tight text-white">{title}</p>
+        <p className="text-[10px] text-zinc-500 font-medium">{desc}</p>
+      </div>
+    </div>
+    <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1 bg-purple-500/10 text-purple-500 rounded-full border border-purple-500/20">{status}</span>
+  </div>
+);

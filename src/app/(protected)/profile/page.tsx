@@ -36,9 +36,19 @@ export default async function ProfilePage() {
               createdAt: 'desc'
             }
           },
+          creatorProfile: {
+            select: {
+              subscriptionPrice: true
+            }
+          },
+          revenues: {
+            orderBy: {
+              createdAt: 'desc'
+            }
+          },
           // Maintain counts for the header stats
           _count: {
-            select: { posts: true, reels: true }
+            select: { posts: true, reels: true, followers: true }
           }
         }
       }

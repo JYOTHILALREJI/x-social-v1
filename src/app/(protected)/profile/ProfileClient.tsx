@@ -9,6 +9,7 @@ import {
 import CreatorOnboarding from "@/components/CreatorOnboarding";
 import CreateContentModal from "@/components/CreateContentModal";
 import UserSettings from "@/components/UserSettings";
+import CreatorDashboard from "@/components/CreatorDashboard";
 
 interface ProfileClientProps {
   user: {
@@ -18,9 +19,13 @@ interface ProfileClientProps {
     creatorStatus: string;
     bio: string | null;
     image: string | null;
-    posts: any[]; // These should be fetched/passed from page.tsx
-    reels: any[]; // These should be fetched/passed from page.tsx
-    _count: { posts: number; reels: number };
+    posts: any[]; 
+    reels: any[]; 
+    revenues: any[];
+    creatorProfile: {
+      subscriptionPrice: number;
+    } | null;
+    _count: { posts: number; reels: number; followers: number };
   };
 }
 
@@ -98,63 +103,66 @@ const ProfileClient = ({ user }: ProfileClientProps) => {
           />
         </div>
       ) : (
-        /* CREATOR VIEW: Dashboard with Tabs */
-        <div className="space-y-6">
-          {/* Tab Selection */}
-          <div className="flex gap-8 border-b border-zinc-900">
-            <button 
-              onClick={() => setActiveTab('posts')}
-              className={`pb-4 text-xs font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-all ${activeTab === 'posts' ? 'border-white text-white' : 'border-transparent text-zinc-600'}`}
-            >
-              <Grid size={16} /> Posts
-            </button>
-            <button 
-              onClick={() => setActiveTab('reels')}
-              className={`pb-4 text-xs font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-all ${activeTab === 'reels' ? 'border-white text-white' : 'border-transparent text-zinc-600'}`}
-            >
-              <Play size={16} /> Reels
-            </button>
-          </div>
+        /* CREATOR VIEW: Full Dashboard */
+        <div className="space-y-12">
+           <CreatorDashboard user={user} />
+           
+           {/* Tab Selection for Content (Optional, if we want to keep the grid below the dashboard) */}
+           <div className="pt-12 border-t border-zinc-900">
+              <div className="flex justify-between items-center mb-10">
+                <div className="flex gap-8">
+                  <button 
+                    onClick={() => setActiveTab('posts')}
+                    className={`pb-4 text-xs font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-all ${activeTab === 'posts' ? 'border-white text-white' : 'border-transparent text-zinc-600'}`}
+                  >
+                    <Grid size={16} /> Posts
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('reels')}
+                    className={`pb-4 text-xs font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-all ${activeTab === 'reels' ? 'border-white text-white' : 'border-transparent text-zinc-600'}`}
+                  >
+                    <Play size={16} /> Reels
+                  </button>
+                </div>
 
-          {/* Action Button at top of tab */}
-          <div className="flex justify-end">
-             {user.creatorStatus === 'APPROVED' && (
-               <button 
-                  onClick={() => {
-                    setCreateType(activeTab);
-                    setIsCreateModalOpen(true);
-                  }}
-                  className="flex items-center gap-2 px-6 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all"
-               >
-                  <Plus size={14} /> New {activeTab === 'posts' ? 'Post' : 'Reel'}
-               </button>
-             )}
-          </div>
+                {user.creatorStatus === 'APPROVED' && (
+                  <button 
+                      onClick={() => {
+                        setCreateType(activeTab);
+                        setIsCreateModalOpen(true);
+                      }}
+                      className="flex items-center gap-2 px-6 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all"
+                  >
+                      <Plus size={14} /> New {activeTab === 'posts' ? 'Post' : 'Reel'}
+                  </button>
+                )}
+              </div>
 
-          {/* Grid View */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {activeTab === 'posts' ? (
-              user.posts.length > 0 ? (
-                user.posts.map((post: any) => (
-                  <div key={post.id} className="aspect-square bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 relative group">
-                    <Image src={post.imageUrl} alt="Post" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                  </div>
-                ))
-              ) : (
-                <EmptyState icon={<Grid size={40}/>} label="No Posts Yet" />
-              )
-            ) : (
-              user.reels.length > 0 ? (
-                user.reels.map((reel: any) => (
-                  <div key={reel.id} className="aspect-[9/16] bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 relative group">
-                    <video src={reel.videoUrl} className="w-full h-full object-cover" />
-                  </div>
-                ))
-              ) : (
-                <EmptyState icon={<Play size={40}/>} label="No Reels Yet" />
-              )
-            )}
-          </div>
+              {/* Grid View */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {activeTab === 'posts' ? (
+                  user.posts.length > 0 ? (
+                    user.posts.map((post: any) => (
+                      <div key={post.id} className="aspect-square bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800 relative group">
+                        <Image src={post.imageUrl} alt="Post" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                      </div>
+                    ))
+                  ) : (
+                    <EmptyState icon={<Grid size={40}/>} label="No Posts Yet" />
+                  )
+                ) : (
+                  user.reels.length > 0 ? (
+                    user.reels.map((reel: any) => (
+                      <div key={reel.id} className="aspect-[9/16] bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800 relative group">
+                        <video src={reel.videoUrl} className="w-full h-full object-cover" />
+                      </div>
+                    ))
+                  ) : (
+                    <EmptyState icon={<Play size={40}/>} label="No Reels Yet" />
+                  )
+                )}
+              </div>
+           </div>
         </div>
       )}
 

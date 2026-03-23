@@ -10,8 +10,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const hideMainNavbar = pathname.startsWith("/admin") || pathname === "/" || pathname === "/auth";
 
   return (
-    <html lang="en">
-      <body className="antialiased bg-black text-white min-h-screen overflow-x-hidden">
+    <html lang="en" suppressHydrationWarning>
+      <body 
+        className="antialiased bg-black text-white min-h-screen overflow-x-hidden"
+        suppressHydrationWarning
+      >
         {/* Only show main Navbar if we are NOT in Admin or Auth paths */}
         {!hideMainNavbar && <Navbar />}
 
