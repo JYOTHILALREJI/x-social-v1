@@ -49,6 +49,7 @@ model User {
   followersCount Int      @default(0)
   followingCount Int      @default(0)
   revenues      Revenue[]
+  purchases     Purchase[]
 }
 
 model Follow {
@@ -56,6 +57,7 @@ model Follow {
   followerId  String
   following   User   @relation("following", fields: [followingId], references: [id])
   followingId String
+  isSubscribed Boolean @default(false)
 
   @@id([followerId, followingId])
 }
@@ -79,6 +81,10 @@ model Revenue {
   type      String   // e.g., "SUBSCRIPTION", "POST_PURCHASE", "REEL_PURCHASE"
   createdAt DateTime @default(now())
   creator   User     @relation(fields: [creatorId], references: [id])
+
+  // Optional links to specific content
+  postId    String?
+  reelId    String?
 
   @@index([creatorId])
 }
@@ -132,6 +138,8 @@ model Post {
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
+  purchases Purchase[]
+
   @@index([authorId])
 }
 
@@ -145,7 +153,24 @@ model Reel {
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
+  purchases Purchase[]
+
   @@index([authorId])
+}
+
+model Purchase {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String?
+  reelId    String?
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id])
+  reel      Reel?    @relation(fields: [reelId], references: [id])
+
+  @@unique([userId, postId])
+  @@unique([userId, reelId])
 }
 
 model Session {

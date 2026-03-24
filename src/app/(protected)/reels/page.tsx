@@ -8,6 +8,7 @@ import { VideoOff } from 'lucide-react';
 export default async function ReelsPage() {
   // 1. Fetch real reels from the database using Prisma 7
   const dbReels = await prisma.reel.findMany({
+    take: 10,
     include: {
       author: {
         select: { username: true }

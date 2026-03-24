@@ -18,6 +18,11 @@ const nextConfig: NextConfig = {
     // before checking if a newer version exists
     minimumCacheTTL: 60,
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
+  },
 };
 
 export default nextConfig;

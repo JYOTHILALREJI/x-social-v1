@@ -47,9 +47,27 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
       followersCount: true,
       followingCount: true,
       posts: {
+        take: 10,
+        select: { 
+          id: true, 
+          caption: true, 
+          createdAt: true, 
+          isPremium: true, 
+          price: true,
+          purchases: { where: { userId: currentUserId } }
+        },
         orderBy: { createdAt: 'desc' }
       },
       reels: {
+        take: 10,
+        select: { 
+          id: true, 
+          caption: true, 
+          createdAt: true, 
+          isPremium: true, 
+          price: true,
+          purchases: { where: { userId: currentUserId } }
+        },
         orderBy: { createdAt: 'desc' }
       },
       _count: {
@@ -80,12 +98,14 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
   });
 
   const isInitialFollowing = !!followRecord;
+  const isSubscribed = !!followRecord?.isSubscribed;
 
   return (
     <PublicProfileClient 
       currentUserId={currentUserId} 
       profile={profile} 
       isInitialFollowing={isInitialFollowing} 
+      isSubscribed={isSubscribed}
     />
   );
 }

@@ -26,12 +26,16 @@ export default async function ProfilePage() {
           bio: true,
           // Fetch actual posts for the creator dashboard
           posts: {
+            take: 20,
+            select: { id: true, caption: true, createdAt: true, isPremium: true, price: true },
             orderBy: {
               createdAt: 'desc'
             }
           },
           // Fetch actual reels for the creator dashboard
           reels: {
+            take: 20,
+            select: { id: true, caption: true, createdAt: true, isPremium: true, price: true },
             orderBy: {
               createdAt: 'desc'
             }
@@ -42,9 +46,10 @@ export default async function ProfilePage() {
             }
           },
           revenues: {
-            orderBy: {
-              createdAt: 'desc'
-            }
+             take: 20,
+             orderBy: {
+               createdAt: 'desc'
+             }
           },
           // Maintain counts for the header stats
           _count: {

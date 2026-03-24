@@ -37,25 +37,37 @@ const MainFeed = async () => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
-      // Using 'follows' as per your schema relation name
       follows: { 
-        include: { 
+        select: {
+          followingId: true,
+          isSubscribed: true,
           following: { 
             select: { id: true, username: true, image: true } 
-          } 
-        } 
+          }
+        }
       }
     }
   });
 
   const followingIds = user?.follows.map(f => f.followingId) || [];
   const followedCreators = user?.follows.map(f => f.following) || [];
+  const subscriptions = user?.follows.filter(f => f.isSubscribed).map(f => f.followingId) || [];
 
   // 2. Fetch Posts
   const posts = followingIds.length > 0 ? await prisma.post.findMany({
     where: { authorId: { in: followingIds } },
-    include: { author: { select: { username: true, image: true } } },
-    orderBy: { createdAt: 'desc' }
+    select: { 
+      id: true, 
+      caption: true, 
+      createdAt: true, 
+      isPremium: true, 
+      price: true, 
+      authorId: true,
+      author: { select: { username: true, image: true } },
+      purchases: { where: { userId } }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 10
   }) : [];
 
   // 3. Fetch Suggested (Creators user IS NOT following)
@@ -104,9 +116,12 @@ const MainFeed = async () => {
         </header>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-12">
-          {posts.map((post, index) => (
+          {posts.map((post: any, index: number) => (
             <React.Fragment key={post.id}>
-              <PostCard post={post} />
+              <PostCard 
+                post={post} 
+                isSubscribed={subscriptions.includes(post.authorId)} 
+              />
               
               {/* INJECT SUGGESTED SECTION after 2 posts */}
               {index === 1 && suggested.length > 0 && (

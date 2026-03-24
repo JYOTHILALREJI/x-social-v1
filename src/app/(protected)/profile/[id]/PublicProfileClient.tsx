@@ -2,20 +2,35 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Grid, Play, Loader2 } from 'lucide-react';
+import { Grid, Play, Loader2, Lock } from 'lucide-react';
 import { toggleFollow } from '@/app/actions/follow';
 
 interface PublicProfileClientProps {
   currentUserId: string;
   profile: any;
   isInitialFollowing: boolean;
+  isSubscribed: boolean;
 }
 
-export default function PublicProfileClient({ currentUserId, profile, isInitialFollowing }: PublicProfileClientProps) {
+export default function PublicProfileClient({ 
+  currentUserId, 
+  profile, 
+  isInitialFollowing, 
+  isSubscribed: initialSubscribed 
+}: PublicProfileClientProps) {
   const [activeTab, setActiveTab] = useState<'posts' | 'reels'>('posts');
   const [isFollowing, setIsFollowing] = useState(isInitialFollowing);
+  const [isSubscribed, setIsSubscribed] = useState(initialSubscribed);
   const [showUnfollowModal, setShowUnfollowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Helper to check if current user has access to a specific item
+  const hasAccess = (item: any) => {
+    if (!item.isPremium) return true;
+    if (isSubscribed) return true;
+    if (item.purchases && item.purchases.length > 0) return true;
+    return false;
+  };
   
   // Optimistic count
   const [followersCount, setFollowersCount] = useState(profile.followersCount || 0);
@@ -133,21 +148,98 @@ export default function PublicProfileClient({ currentUserId, profile, isInitialF
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-4">
             {activeTab === 'posts' ? (
               profile.posts && profile.posts.length > 0 ? (
-                profile.posts.map((post: any) => (
-                  <div key={post.id} className="aspect-square bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 relative group">
-                    <img src={post.imageUrl} alt="Post" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                  </div>
-                ))
+                profile.posts.map((post: any) => {
+                  const unlocked = hasAccess(post);
+                  return (
+                    <div key={post.id} className="aspect-square bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 relative group cursor-pointer">
+                      <img 
+                        src={`/api/media/post/${post.id}`} 
+                        alt="Post" 
+                        className={`w-full h-full object-cover transition-all duration-500 ${unlocked ? 'group-hover:scale-110' : 'blur-md opacity-50'}`} 
+                      />
+                      {!unlocked && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-black/50 via-black/10 to-black/70 backdrop-blur-[2px] p-3 text-center">
+                          {/* Lock Icon */}
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center mb-2"
+                            style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)', boxShadow: '0 0 20px rgba(168,85,247,0.55)' }}>
+                            <Lock size={15} className="text-white" />
+                          </div>
+
+                          {/* Label */}
+                          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-purple-300 mb-1">Premium</p>
+
+                          {/* Price Badge */}
+                          <div className="flex items-center gap-0.5 px-3 py-1 rounded-full mb-3 border border-purple-500/40"
+                            style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.4), rgba(168,85,247,0.2))' }}>
+                            <span className="text-[10px] font-black text-purple-300">$</span>
+                            <span className="text-base font-black text-white" style={{ textShadow: '0 0 10px rgba(168,85,247,0.9)' }}>
+                              {((post.price || 0) / 100).toFixed(2)}
+                            </span>
+                          </div>
+
+                          {/* Unlock Button */}
+                          <button
+                            className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest text-white rounded-full transition-all duration-300 hover:scale-105 active:scale-95"
+                            style={{
+                              background: 'linear-gradient(135deg, #7c3aed, #a855f7, #ec4899)',
+                              boxShadow: '0 0 16px rgba(168,85,247,0.55)'
+                            }}
+                          >
+                            🔓 Unlock
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               ) : (
                 <EmptyState icon={<Grid size={40}/>} label="No Posts Yet" />
               )
             ) : (
               profile.reels && profile.reels.length > 0 ? (
-                profile.reels.map((reel: any) => (
-                  <div key={reel.id} className="aspect-[9/16] bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 relative group">
-                    <video src={reel.videoUrl} className="w-full h-full object-cover" />
-                  </div>
-                ))
+                profile.reels.map((reel: any) => {
+                  const unlocked = hasAccess(reel);
+                  return (
+                    <div key={reel.id} className="aspect-[9/16] bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 relative group cursor-pointer">
+                      <video 
+                        src={`/api/media/reel/${reel.id}`} 
+                        className={`w-full h-full object-cover transition-all duration-500 ${unlocked ? '' : 'blur-lg opacity-30'}`} 
+                      />
+                      {!unlocked && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-black/50 via-black/10 to-black/70 backdrop-blur-[2px] p-3 text-center">
+                          {/* Lock Icon */}
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2"
+                            style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)', boxShadow: '0 0 24px rgba(168,85,247,0.55)' }}>
+                            <Lock size={18} className="text-white" />
+                          </div>
+
+                          {/* Label */}
+                          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-purple-300 mb-1">Premium Reel</p>
+
+                          {/* Price Badge */}
+                          <div className="flex items-center gap-0.5 px-3 py-1 rounded-full mb-3 border border-purple-500/40"
+                            style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.4), rgba(168,85,247,0.2))' }}>
+                            <span className="text-[10px] font-black text-purple-300">$</span>
+                            <span className="text-base font-black text-white" style={{ textShadow: '0 0 10px rgba(168,85,247,0.9)' }}>
+                              {((reel.price || 0) / 100).toFixed(2)}
+                            </span>
+                          </div>
+
+                          {/* Unlock Button */}
+                          <button
+                            className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest text-white rounded-full transition-all duration-300 hover:scale-105 active:scale-95"
+                            style={{
+                              background: 'linear-gradient(135deg, #7c3aed, #a855f7, #ec4899)',
+                              boxShadow: '0 0 16px rgba(168,85,247,0.55)'
+                            }}
+                          >
+                            🔓 Unlock
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               ) : (
                 <EmptyState icon={<Play size={40}/>} label="No Reels Yet" />
               )

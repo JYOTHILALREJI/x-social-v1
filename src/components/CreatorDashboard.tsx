@@ -334,9 +334,9 @@ const ContentItem = ({ item, type }: { item: any; type: 'post' | 'reel' }) => {
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 relative rounded-xl overflow-hidden border border-zinc-800">
            {type === 'post' ? (
-             <Image src={item.imageUrl} alt="content" fill className="object-cover" />
+             <Image src={`/api/media/post/${item.id}`} alt="content" fill className="object-cover" unoptimized />
            ) : (
-             <video src={item.videoUrl} className="w-full h-full object-cover" />
+             <video src={`/api/media/reel/${item.id}`} className="w-full h-full object-cover" />
            )}
         </div>
         <div>

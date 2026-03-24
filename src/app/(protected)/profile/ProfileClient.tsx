@@ -144,7 +144,7 @@ const ProfileClient = ({ user }: ProfileClientProps) => {
                   user.posts.length > 0 ? (
                     user.posts.map((post: any) => (
                       <div key={post.id} className="aspect-square bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800 relative group">
-                        <Image src={post.imageUrl} alt="Post" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                        <Image src={`/api/media/post/${post.id}`} alt="Post" fill className="object-cover group-hover:scale-110 transition-transform duration-500" unoptimized />
                       </div>
                     ))
                   ) : (
@@ -154,7 +154,7 @@ const ProfileClient = ({ user }: ProfileClientProps) => {
                   user.reels.length > 0 ? (
                     user.reels.map((reel: any) => (
                       <div key={reel.id} className="aspect-[9/16] bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800 relative group">
-                        <video src={reel.videoUrl} className="w-full h-full object-cover" />
+                        <video src={`/api/media/reel/${reel.id}`} className="w-full h-full object-cover" />
                       </div>
                     ))
                   ) : (
