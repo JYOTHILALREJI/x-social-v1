@@ -1,6 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
-import { Heart, MessageCircle, Send, Lock } from 'lucide-react';
+import { Heart, MessageCircle, Send, Lock, Crown } from 'lucide-react';
 
 interface PostCardProps {
   post: {
@@ -37,6 +37,12 @@ const PostCard = ({ post, isSubscribed = false }: PostCardProps) => {
           <span className="font-black italic uppercase tracking-tighter text-white text-lg">
             {post.author.username}
           </span>
+          {post.isPremium && (
+            <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-purple-600/10 border border-purple-500/20 rounded-full">
+              <Crown size={12} className="text-purple-500" />
+              <span className="text-[10px] font-black uppercase text-purple-500 tracking-widest">Premium</span>
+            </div>
+          )}
         </div>
 
         {post.id && (

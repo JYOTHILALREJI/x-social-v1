@@ -48,8 +48,10 @@ model User {
   followers Follow[] @relation("following") // People following THIS user
   followersCount Int      @default(0)
   followingCount Int      @default(0)
-  revenues      Revenue[]
+  subscribersCount Int    @default(0)
+  revenues      Revenue[]  @relation("CreatorRevenue") // Revenue earned
   purchases     Purchase[]
+  spendings     Revenue[]  @relation("UserSpendings") // Money spent
 }
 
 model Follow {
@@ -57,7 +59,8 @@ model Follow {
   followerId  String
   following   User   @relation("following", fields: [followingId], references: [id])
   followingId String
-  isSubscribed Boolean @default(false)
+  subscriptionTier Int @default(0) // 0: just follow, 1-3: tiers
+  expiresAt   DateTime? // For future subscription expiry logic
 
   @@id([followerId, followingId])
 }
@@ -69,7 +72,9 @@ model CreatorProfile {
   categories        String[] // Lingerie, Nudity, etc.
   idProofUrl        String   // URL from S3/Cloudinary
   selfieUrl         String   // URL from S3/Cloudinary
-  subscriptionPrice Int      @default(0)
+  tier1Price        Int      @default(0)
+  tier2Price        Int      @default(0)
+  tier3Price        Int      @default(0)
   status            Status   @default(PENDING)
   createdAt         DateTime @default(now())
 }
@@ -77,16 +82,20 @@ model CreatorProfile {
 model Revenue {
   id        String   @id @default(cuid())
   creatorId String
+  senderId  String?   // The user who paid
   amount    Int
-  type      String   // e.g., "SUBSCRIPTION", "POST_PURCHASE", "REEL_PURCHASE"
+  type      String   // e.g., "SUBSCRIPTION", "POST_PURCHASE", "REEL_PURCHASE", "TIP"
   createdAt DateTime @default(now())
-  creator   User     @relation(fields: [creatorId], references: [id])
+  
+  creator   User     @relation("CreatorRevenue", fields: [creatorId], references: [id])
+  sender    User?    @relation("UserSpendings", fields: [senderId], references: [id])
 
   // Optional links to specific content
   postId    String?
   reelId    String?
 
   @@index([creatorId])
+  @@index([senderId])
 }
 
 model Match {
@@ -206,4 +215,10 @@ enum MatchStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+model SystemSettings {
+  id          String   @id @default("default")
+  platformFee Int      @default(20) // Percentage
+  updatedAt   DateTime @updatedAt
 }

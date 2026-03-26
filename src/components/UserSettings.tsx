@@ -82,7 +82,7 @@ export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator, 
   };
 
   return (
-    <div className="w-full lg:w-[90%] space-y-10">
+    <div className="w-full space-y-10">
       {settingsSections.map((section, idx) => (
         <div key={idx} className="space-y-4">
           <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] ml-4">

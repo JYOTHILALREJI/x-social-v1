@@ -19,7 +19,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
   const session = await prisma.session.findUnique({
     where: { sessionToken },
     include: {
-      user: { select: { id: true } }
+      user: { select: { id: true, walletBalance: true } }
     }
   });
 
@@ -46,6 +46,14 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
       bio: true,
       followersCount: true,
       followingCount: true,
+      subscribersCount: true,
+      creatorProfile: {
+        select: {
+            tier1Price: true,
+            tier2Price: true,
+            tier3Price: true
+        }
+      },
       posts: {
         take: 10,
         select: { 
@@ -98,14 +106,15 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
   });
 
   const isInitialFollowing = !!followRecord;
-  const isSubscribed = !!followRecord?.isSubscribed;
+  const initialSubscriptionTier = followRecord?.subscriptionTier || 0;
 
   return (
     <PublicProfileClient 
       currentUserId={currentUserId} 
-      profile={profile} 
+      currentUserBalance={session.user.walletBalance}
+      profile={profile as any} 
       isInitialFollowing={isInitialFollowing} 
-      isSubscribed={isSubscribed}
+      initialSubscriptionTier={initialSubscriptionTier}
     />
   );
 }

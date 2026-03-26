@@ -37,7 +37,7 @@ const SuggestedCreators = ({ suggested, currentUserId }: { suggested: any[], cur
             <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-col gap-2">
               <Link href={`/profile/${creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                 <div className="w-6 h-6 rounded-full overflow-hidden relative border border-white/20">
-                  <Image src={creator.image || ""} alt="" fill className="object-cover" />
+                  <Image src={creator.image || "/default_user_profile/default-avatar.png"} alt="" fill className="object-cover" />
                 </div>
                 <span className="text-[10px] font-bold text-white uppercase italic">@{creator.username}</span>
               </Link>

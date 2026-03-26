@@ -2,27 +2,35 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Grid, Play, Loader2, Lock } from 'lucide-react';
+import { Grid, Play, Loader2, Lock, Users, Star, Crown, Heart, Sparkles, ChevronRight, Wallet, Plus } from 'lucide-react';
 import { toggleFollow } from '@/app/actions/follow';
+import { subscribeToCreator } from '@/app/actions/user-actions';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface PublicProfileClientProps {
   currentUserId: string;
+  currentUserBalance: number;
   profile: any;
   isInitialFollowing: boolean;
-  isSubscribed: boolean;
+  initialSubscriptionTier: number;
 }
 
 export default function PublicProfileClient({ 
   currentUserId, 
+  currentUserBalance,
   profile, 
   isInitialFollowing, 
-  isSubscribed: initialSubscribed 
+  initialSubscriptionTier 
 }: PublicProfileClientProps) {
   const [activeTab, setActiveTab] = useState<'posts' | 'reels'>('posts');
   const [isFollowing, setIsFollowing] = useState(isInitialFollowing);
-  const [isSubscribed, setIsSubscribed] = useState(initialSubscribed);
+  const [subscriptionTier, setSubscriptionTier] = useState(initialSubscriptionTier);
   const [showUnfollowModal, setShowUnfollowModal] = useState(false);
+  const [showSubModal, setShowSubModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
+
+  const isSubscribed = subscriptionTier > 0;
 
   // Helper to check if current user has access to a specific item
   const hasAccess = (item: any) => {
@@ -34,9 +42,34 @@ export default function PublicProfileClient({
   
   // Optimistic count
   const [followersCount, setFollowersCount] = useState(profile.followersCount || 0);
+  const [subscribersCount, setSubscribersCount] = useState(profile.subscribersCount || 0);
 
   const isCreator = profile.role === 'CREATOR';
   const DEFAULT_AVATAR = "/default_user_profile/default-avatar.png";
+
+  const handleSubscribe = async (tier: 1 | 2 | 3, amount: number) => {
+    if (currentUserBalance < amount) {
+        alert("Insufficient wallet balance. Please top up your wallet.");
+        return;
+    }
+
+    setSubscribing(true);
+    const res = await subscribeToCreator(currentUserId, profile.id, tier, amount);
+    if (res.success) {
+        setSubscriptionTier(tier);
+        setSubscribersCount((prev: number) => prev + 1);
+        setShowSubModal(false);
+        // Also follow if not following
+        if (!isFollowing) {
+            setIsFollowing(true);
+            setFollowersCount((prev: number) => prev + 1);
+        }
+    } else {
+        alert(res.error || "Failed to subscribe.");
+    }
+    setSubscribing(false);
+  };
+
 
   const handleFollowAction = async () => {
     if (isFollowing) {
@@ -99,23 +132,38 @@ export default function PublicProfileClient({
               )}
             </div>
             
-            <button 
-              onClick={handleFollowAction}
-              disabled={loading}
-              className={`px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-xs w-full md:w-auto ${
-                isFollowing 
-                ? "border border-zinc-800 hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-500 text-white" 
-                : "bg-purple-600 text-white hover:bg-purple-500"
-              }`}
-            >
-              {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : isFollowing ? "Following" : "Follow"}
-            </button>
+            <div className="flex gap-3 w-full md:w-auto">
+              {isCreator && (
+                <button 
+                  onClick={() => setShowSubModal(true)}
+                  className={`flex-1 md:flex-none px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-xs flex items-center justify-center gap-2 ${
+                    isSubscribed 
+                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
+                    : "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-500/20"
+                  }`}
+                >
+                  <Heart size={16} className={isSubscribed ? "fill-emerald-500" : ""} />
+                  {isSubscribed ? `Tier ${subscriptionTier} Member` : "Join Family"}
+                </button>
+              )}
+              <button 
+                onClick={handleFollowAction}
+                disabled={loading}
+                className={`flex-1 md:flex-none px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-xs ${
+                  isFollowing 
+                  ? "border border-zinc-800 hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-500 text-white" 
+                  : "bg-zinc-900 border border-zinc-800 text-white hover:bg-zinc-800"
+                }`}
+              >
+                {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : isFollowing ? "Following" : "Follow"}
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-center md:justify-start gap-10">
             <div className="flex flex-col"><span className="font-bold text-xl">{profile._count?.posts || 0}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Posts</span></div>
-            <div className="flex flex-col"><span className="font-bold text-xl">{profile._count?.reels || 0}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Reels</span></div>
             <div className="flex flex-col"><span className="font-bold text-xl">{followersCount}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Followers</span></div>
+            <div className="flex flex-col"><span className="font-bold text-xl">{subscribersCount}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Subscribers</span></div>
             <div className="flex flex-col"><span className="font-bold text-xl">{profile.followingCount || 0}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Following</span></div>
           </div>
 
@@ -157,6 +205,18 @@ export default function PublicProfileClient({
                         alt="Post" 
                         className={`w-full h-full object-cover transition-all duration-500 ${unlocked ? 'group-hover:scale-110' : 'blur-md opacity-50'}`} 
                       />
+
+                      {post.isPremium && (
+                        <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5 pointer-events-none">
+                          <span className="px-2.5 py-1 bg-purple-600/90 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-wider rounded-lg border border-purple-400/30 shadow-lg shadow-purple-900/40">
+                            Premium
+                          </span>
+                          <span className="px-2 py-1 bg-black/80 backdrop-blur-md text-purple-400 text-[9px] font-black rounded-lg border border-zinc-800 shadow-xl">
+                            ${((post.price || 0) / 100).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+
                       {!unlocked && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-black/50 via-black/10 to-black/70 backdrop-blur-[2px] p-3 text-center">
                           {/* Lock Icon */}
@@ -205,6 +265,18 @@ export default function PublicProfileClient({
                         src={`/api/media/reel/${reel.id}`} 
                         className={`w-full h-full object-cover transition-all duration-500 ${unlocked ? '' : 'blur-lg opacity-30'}`} 
                       />
+
+                      {reel.isPremium && (
+                        <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2 pointer-events-none">
+                          <span className="px-3 py-1 bg-purple-600/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest rounded-xl border border-purple-400/30 shadow-lg shadow-purple-900/40">
+                            Premium Reel
+                          </span>
+                          <span className="px-3 py-1 bg-black/80 backdrop-blur-md text-purple-400 text-[11px] font-black rounded-xl border border-zinc-800 shadow-xl">
+                            ${((reel.price || 0) / 100).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+
                       {!unlocked && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-black/50 via-black/10 to-black/70 backdrop-blur-[2px] p-3 text-center">
                           {/* Lock Icon */}
@@ -285,9 +357,120 @@ export default function PublicProfileClient({
           </div>
         </div>
       )}
+
+      {/* Subscription Tier Modal */}
+      <AnimatePresence>
+        {showSubModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0, y: 30 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.9, opacity: 0, y: 30 }}
+                    className="bg-black border border-zinc-900 rounded-[3rem] p-10 w-full max-w-2xl shadow-2xl relative overflow-hidden"
+                >
+                    <div className="absolute top-0 right-0 p-12 opacity-5 text-purple-600 pointer-events-none">
+                        <Star size={300} />
+                    </div>
+
+                    <div className="flex justify-between items-start mb-8 relative z-10">
+                        <div>
+                            <h2 className="text-4xl font-black italic uppercase tracking-tighter">Choose Your <span className="text-purple-500">Tier</span></h2>
+                            <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mt-1">Unlock @{profile.username}&apos;s exclusive family content.</p>
+                        </div>
+                        <button onClick={() => setShowSubModal(false)} className="p-3 bg-zinc-900 rounded-2xl hover:bg-zinc-800 transition-all">
+                            <Plus className="rotate-45 text-zinc-500" />
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
+                        {/* TIER 1 */}
+                        <SubTierCard 
+                            tier={1} 
+                            title="Family Member" 
+                            price={profile.creatorProfile?.tier1Price || 500}
+                            icon={<Heart size={20} className="text-emerald-500" />}
+                            features={["Access to all Premium Posts", "Direct Messaging", "Loyalty Badge"]}
+                            onSelect={handleSubscribe}
+                            disabled={subscribing}
+                            currentTier={subscriptionTier}
+                        />
+                        {/* TIER 2 */}
+                        <SubTierCard 
+                            tier={2} 
+                            title="Premium Fan" 
+                            price={profile.creatorProfile?.tier2Price || 1500}
+                            icon={<Star size={20} className="text-purple-500" />}
+                            features={["Tier 1 Access", "Priority Support", "HD Content Unlock"]}
+                            onSelect={handleSubscribe}
+                            disabled={subscribing}
+                            currentTier={subscriptionTier}
+                            highlight
+                        />
+                        {/* TIER 3 */}
+                        <SubTierCard 
+                            tier={3} 
+                            title="Elite VIP" 
+                            price={profile.creatorProfile?.tier3Price || 3500}
+                            icon={<Crown size={20} className="text-amber-500" />}
+                            features={["All Previous Access", "Private Video Request", "Physical Gift Eligibility"]}
+                            onSelect={handleSubscribe}
+                            disabled={subscribing}
+                            currentTier={subscriptionTier}
+                        />
+                    </div>
+
+                    <div className="mt-8 flex items-center justify-center gap-3 p-4 bg-zinc-950 rounded-2xl border border-zinc-900">
+                        <Wallet size={16} className="text-emerald-500" />
+                        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">
+                            Your Wallet Balance: <span className="text-white">${(currentUserBalance / 100).toFixed(2)}</span>
+                        </p>
+                    </div>
+                </motion.div>
+            </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
+const SubTierCard = ({ tier, title, price, icon, features, onSelect, disabled, currentTier, highlight }: any) => {
+    const isOwned = currentTier >= tier;
+
+    return (
+        <div className={`p-6 rounded-[2rem] border transition-all flex flex-col h-full ${highlight ? 'bg-purple-600/5 border-purple-500 shadow-xl shadow-purple-900/40' : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'}`}>
+            <div className="flex justify-between items-start mb-6">
+                <div className="p-3 bg-black rounded-2xl">{icon}</div>
+                {highlight && <span className="text-[8px] font-black uppercase tracking-widest bg-purple-600 text-white px-2 py-1 rounded-full">Popular</span>}
+            </div>
+            
+            <div className="flex-1">
+                <h4 className="text-sm font-black uppercase tracking-tighter mb-1">{title}</h4>
+                <div className="flex items-baseline gap-1 mb-6">
+                    <span className="text-2xl font-black italic tracking-tighter text-white">${(price / 100).toFixed(2)}</span>
+                    <span className="text-[10px] font-black uppercase text-zinc-600">/mo</span>
+                </div>
+
+                <div className="space-y-3 mb-8">
+                    {features.map((f: string, i: number) => (
+                        <div key={i} className="flex items-start gap-2">
+                            <Sparkles size={10} className="text-zinc-500 mt-1 shrink-0" />
+                            <p className="text-[10px] font-medium text-zinc-400 leading-tight">{f}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <button 
+                onClick={() => onSelect(tier, price)}
+                disabled={disabled || isOwned}
+                className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isOwned ? 'bg-emerald-500/20 text-emerald-500 cursor-default' : highlight ? 'bg-white text-black hover:bg-purple-500 hover:text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-white hover:text-black'}`}
+            >
+                {isOwned ? "Already Owned" : "Select Plan"}
+            </button>
+        </div>
+    );
+};
+
 
 const EmptyState = ({ icon, label }: { icon: React.ReactNode, label: string }) => (
   <div className="col-span-full py-20 flex flex-col items-center justify-center bg-zinc-950/30 border border-zinc-900 border-dashed rounded-[2rem]">

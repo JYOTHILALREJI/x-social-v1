@@ -5,7 +5,7 @@ import {
   TrendingUp, Users, DollarSign, Calendar, Filter, 
   Eye, EyeOff, MoreHorizontal, ArrowUpRight, ArrowDownRight,
   BarChart3, LayoutDashboard, Settings as SettingsIcon,
-  ChevronDown, Download, Share2
+  ChevronDown, Download, Share2, Wallet, Crown
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -49,13 +49,19 @@ interface CreatorDashboardProps {
     posts: any[];
     reels: any[];
     revenues: Revenue[];
+    walletBalance: number;
+    followersCount: number;
+    subscribersCount: number;
     creatorProfile: {
-      subscriptionPrice: number;
+      tier1Price: number;
+      tier2Price: number;
+      tier3Price: number;
     } | null;
   };
+  platformFee?: number;
 }
 
-const CreatorDashboard = ({ user }: CreatorDashboardProps) => {
+const CreatorDashboard = ({ user, platformFee = 20 }: CreatorDashboardProps) => {
   const [timeFilter, setTimeFilter] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [mounted, setMounted] = useState(false);
 
@@ -63,19 +69,26 @@ const CreatorDashboard = ({ user }: CreatorDashboardProps) => {
     setMounted(true);
   }, []);
 
-  // Calculate stats
-  const totalEarnings = useMemo(() => 
-    user.revenues.reduce((acc, rev) => acc + rev.amount, 0), 
-    [user.revenues]
-  );
+  // Calculate stats with platform fee deduction
+  const totalEarnings = useMemo(() => {
+    const gross = user.revenues.reduce((acc, rev) => acc + rev.amount, 0);
+    return Math.floor(gross * (1 - platformFee / 100));
+  }, [user.revenues, platformFee]);
 
   const monthlyEarnings = useMemo(() => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    return user.revenues
+    const gross = user.revenues
       .filter(rev => new Date(rev.createdAt) >= startOfMonth)
       .reduce((acc, rev) => acc + rev.amount, 0);
-  }, [user.revenues]);
+    return Math.floor(gross * (1 - platformFee / 100));
+  }, [user.revenues, platformFee]);
+
+  const earningsDeducted = useMemo(() => {
+    const gross = user.revenues.reduce((acc, rev) => acc + rev.amount, 0);
+    return Math.floor(gross * (platformFee / 100));
+  }, [user.revenues, platformFee]);
+
 
   // Chart Data preparation
   const chartData = useMemo(() => {
@@ -197,34 +210,41 @@ const CreatorDashboard = ({ user }: CreatorDashboardProps) => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatCard 
           title="Total Earnings" 
-          value={`$${totalEarnings.toLocaleString()}`} 
-          trend="+12.5%" 
+          value={`$${(totalEarnings / 100).toLocaleString()}`} 
+          trend={`Excl. ${platformFee}% Platform Fee`} 
           trendUp={true} 
           icon={<DollarSign className="text-emerald-500" />} 
         />
         <StatCard 
           title="Monthly Revenue" 
-          value={`$${monthlyEarnings.toLocaleString()}`} 
-          trend="+5.2%" 
+          value={`$${(monthlyEarnings / 100).toLocaleString()}`} 
+          trend="Calculated Net" 
           trendUp={true} 
           icon={<TrendingUp className="text-purple-500" />} 
         />
         <StatCard 
-          title="Total Subscribers" 
-          value={user._count.followers.toLocaleString()} 
-          trend="+84" 
+          title="Wallet Balance" 
+          value={`$${(user.walletBalance / 100).toFixed(2)}`} 
+          trend="Available for payout" 
+          trendUp={true} 
+          icon={<Wallet className="text-emerald-400" />} 
+        />
+        <StatCard 
+          title="Total Followers" 
+          value={(user.followersCount || 0).toLocaleString()} 
+          trend="Community" 
           trendUp={true} 
           icon={<Users className="text-blue-500" />} 
         />
         <StatCard 
-          title="Content Views" 
-          value="12.4K" 
-          trend="-2.1%" 
-          trendUp={false} 
-          icon={<BarChart3 className="text-amber-500" />} 
+          title="Total Subscribers" 
+          value={(user.subscribersCount || 0).toLocaleString()} 
+          trend="Paying Members" 
+          trendUp={true} 
+          icon={<Crown className="text-amber-500" />} 
         />
       </div>
 

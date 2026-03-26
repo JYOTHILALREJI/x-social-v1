@@ -2,6 +2,7 @@
 import { usePathname } from "next/navigation";
 import "./globals.css";
 import Navbar from "../components/Navbar";
+import { AnimatePresence, motion } from "framer-motion";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

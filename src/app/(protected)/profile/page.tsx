@@ -24,6 +24,9 @@ export default async function ProfilePage() {
           creatorStatus: true,
           image: true,
           bio: true,
+          walletBalance: true,
+          followersCount: true,
+          subscribersCount: true,
           // Fetch actual posts for the creator dashboard
           posts: {
             take: 20,
@@ -42,7 +45,9 @@ export default async function ProfilePage() {
           },
           creatorProfile: {
             select: {
-              subscriptionPrice: true
+              tier1Price: true,
+              tier2Price: true,
+              tier3Price: true
             }
           },
           revenues: {
@@ -64,6 +69,17 @@ export default async function ProfilePage() {
     redirect("/auth");
   }
 
+  // 3. Fetch system settings for platform fee
+  let settings = await prisma.systemSettings.findUnique({
+    where: { id: "default" }
+  });
+
+  if (!settings) {
+    settings = await prisma.systemSettings.create({
+      data: { id: "default", platformFee: 20 }
+    });
+  }
+
   // 2. Pass the user data (now including posts and reels) to the client component
-  return <ProfileClient user={session.user} />;
+  return <ProfileClient user={session.user} platformFee={settings.platformFee} />;
 }

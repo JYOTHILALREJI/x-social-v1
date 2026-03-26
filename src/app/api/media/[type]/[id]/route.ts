@@ -67,10 +67,10 @@ export async function GET(
                 followingId: authorId,
               },
             },
-            select: { isSubscribed: true },
+            select: { subscriptionTier: true },
           });
 
-          if (follow?.isSubscribed) {
+          if ((follow?.subscriptionTier || 0) > 0) {
             isAuthorized = true;
           } else {
             // Check specific purchase
