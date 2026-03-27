@@ -4,8 +4,9 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { Grid, Play, Loader2, Lock, Users, Star, Crown, Heart, Sparkles, ChevronRight, Wallet, Plus } from 'lucide-react';
 import { toggleFollow } from '@/app/actions/follow';
-import { subscribeToCreator } from '@/app/actions/user-actions';
+import { subscribeToCreator, purchaseContent } from '@/app/actions/user-actions';
 import { motion, AnimatePresence } from 'framer-motion';
+import PurchaseConfirmationModal from '@/components/PurchaseConfirmationModal';
 
 interface PublicProfileClientProps {
   currentUserId: string;
@@ -15,6 +16,8 @@ interface PublicProfileClientProps {
   initialSubscriptionTier: number;
 }
 
+import { useRouter } from 'next/navigation';
+
 export default function PublicProfileClient({ 
   currentUserId, 
   currentUserBalance,
@@ -22,6 +25,7 @@ export default function PublicProfileClient({
   isInitialFollowing, 
   initialSubscriptionTier 
 }: PublicProfileClientProps) {
+  const router = useRouter(); 
   const [activeTab, setActiveTab] = useState<'posts' | 'reels'>('posts');
   const [isFollowing, setIsFollowing] = useState(isInitialFollowing);
   const [subscriptionTier, setSubscriptionTier] = useState(initialSubscriptionTier);
@@ -29,6 +33,18 @@ export default function PublicProfileClient({
   const [showSubModal, setShowSubModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+  const [purchasedItems, setPurchasedItems] = useState<string[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0); // For forcing media re-requests
+  const [loadingMedia, setLoadingMedia] = useState<Record<string, boolean>>({});
+
+  type PendingTransaction = {
+    type: 'subscribe' | 'post' | 'reel';
+    id?: string;
+    tier?: 1 | 2 | 3;
+    amount: number;
+    name: string;
+  } | null;
+  const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction>(null);
 
   const isSubscribed = subscriptionTier > 0;
 
@@ -36,6 +52,7 @@ export default function PublicProfileClient({
   const hasAccess = (item: any) => {
     if (!item.isPremium) return true;
     if (isSubscribed) return true;
+    if (purchasedItems.includes(item.id)) return true;
     if (item.purchases && item.purchases.length > 0) return true;
     return false;
   };
@@ -47,7 +64,7 @@ export default function PublicProfileClient({
   const isCreator = profile.role === 'CREATOR';
   const DEFAULT_AVATAR = "/default_user_profile/default-avatar.png";
 
-  const handleSubscribe = async (tier: 1 | 2 | 3, amount: number) => {
+  const performSubscribe = async (tier: 1 | 2 | 3, amount: number) => {
     if (currentUserBalance < amount) {
         alert("Insufficient wallet balance. Please top up your wallet.");
         return;
@@ -56,9 +73,17 @@ export default function PublicProfileClient({
     setSubscribing(true);
     const res = await subscribeToCreator(currentUserId, profile.id, tier, amount);
     if (res.success) {
+        // Find all currently locked items and mark them as loading BEFORE we unlock them
+        const newlyUnlocked: Record<string, boolean> = {};
+        profile.posts?.forEach((p: any) => { if (!hasAccess(p)) newlyUnlocked[p.id] = true; });
+        profile.reels?.forEach((r: any) => { if (!hasAccess(r)) newlyUnlocked[r.id] = true; });
+        setLoadingMedia(prev => ({ ...prev, ...newlyUnlocked }));
+
         setSubscriptionTier(tier);
         setSubscribersCount((prev: number) => prev + 1);
         setShowSubModal(false);
+        setRefreshKey(prev => prev + 1);
+        router.refresh(); // Sync server state
         // Also follow if not following
         if (!isFollowing) {
             setIsFollowing(true);
@@ -68,8 +93,38 @@ export default function PublicProfileClient({
         alert(res.error || "Failed to subscribe.");
     }
     setSubscribing(false);
+    setPendingTransaction(null);
   };
 
+  const performUnlockContent = async (contentId: string, type: 'post' | 'reel', amount: number) => {
+    if (currentUserBalance < amount) {
+        alert("Insufficient wallet balance. Please top up your wallet.");
+        return;
+    }
+
+    setLoading(true);
+    const res = await purchaseContent(currentUserId, contentId, type, amount);
+    if (res.success) {
+        setLoadingMedia(prev => ({ ...prev, [contentId]: true }));
+        setPurchasedItems(prev => [...prev, contentId]);
+        setRefreshKey(prev => prev + 1);
+        router.refresh(); // Sync server state
+    } else {
+        alert(res.error || "Failed to unlock content.");
+    }
+    setLoading(false);
+    setPendingTransaction(null);
+  };
+
+  const executePendingTransaction = async () => {
+    if (!pendingTransaction) return;
+    const { type, id, tier, amount } = pendingTransaction;
+    if (type === 'subscribe') {
+      await performSubscribe(tier!, amount);
+    } else {
+      await performUnlockContent(id!, type, amount);
+    }
+  };
 
   const handleFollowAction = async () => {
     if (isFollowing) {
@@ -198,13 +253,24 @@ export default function PublicProfileClient({
               profile.posts && profile.posts.length > 0 ? (
                 profile.posts.map((post: any) => {
                   const unlocked = hasAccess(post);
+                  const isMediaLoading = loadingMedia[post.id];
                   return (
                     <div key={post.id} className="aspect-square bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 relative group cursor-pointer">
                       <img 
-                        src={`/api/media/post/${post.id}`} 
+                        src={unlocked ? `/api/media/post/${post.id}?t=${refreshKey}` : "/locked-content.png"} 
                         alt="Post" 
-                        className={`w-full h-full object-cover transition-all duration-500 ${unlocked ? 'group-hover:scale-110' : 'blur-md opacity-50'}`} 
+                        onLoad={() => setLoadingMedia(prev => ({ ...prev, [post.id]: false }))}
+                        onContextMenu={(e) => e.preventDefault()}
+                        onDragStart={(e) => e.preventDefault()}
+                        className={`w-full h-full object-cover transition-all duration-500 select-none pointer-events-none ${(!unlocked || isMediaLoading) ? 'blur-sm scale-105 opacity-80' : 'group-hover:scale-110'}`} 
                       />
+
+                      {/* Loading Spinner for newly unlocked content */}
+                      {unlocked && isMediaLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-20">
+                          <Loader2 size={32} className="animate-spin text-purple-400 drop-shadow-lg" />
+                        </div>
+                      )}
 
                       {post.isPremium && (
                         <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5 pointer-events-none">
@@ -239,13 +305,15 @@ export default function PublicProfileClient({
 
                           {/* Unlock Button */}
                           <button
-                            className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest text-white rounded-full transition-all duration-300 hover:scale-105 active:scale-95"
+                            onClick={() => setPendingTransaction({ type: 'post', id: post.id, amount: post.price || 0, name: `Premium Post` })}
+                            disabled={loading}
+                            className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest text-white rounded-full transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50"
                             style={{
                               background: 'linear-gradient(135deg, #7c3aed, #a855f7, #ec4899)',
                               boxShadow: '0 0 16px rgba(168,85,247,0.55)'
                             }}
                           >
-                            🔓 Unlock
+                            {loading ? <Loader2 size={10} className="animate-spin" /> : "🔓 Unlock"}
                           </button>
                         </div>
                       )}
@@ -259,12 +327,35 @@ export default function PublicProfileClient({
               profile.reels && profile.reels.length > 0 ? (
                 profile.reels.map((reel: any) => {
                   const unlocked = hasAccess(reel);
+                  const isMediaLoading = loadingMedia[reel.id];
                   return (
                     <div key={reel.id} className="aspect-[9/16] bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 relative group cursor-pointer">
+                    {unlocked ? (
                       <video 
-                        src={`/api/media/reel/${reel.id}`} 
-                        className={`w-full h-full object-cover transition-all duration-500 ${unlocked ? '' : 'blur-lg opacity-30'}`} 
+                        src={`/api/media/reel/${reel.id}?t=${refreshKey}`} 
+                        onLoadedData={() => setLoadingMedia(prev => ({ ...prev, [reel.id]: false }))}
+                        onContextMenu={(e) => e.preventDefault()}
+                        onDragStart={(e) => e.preventDefault()}
+                        controlsList="nodownload noplaybackrate"
+                        disablePictureInPicture
+                        className={`w-full h-full object-cover transition-all duration-500 select-none pointer-events-none ${isMediaLoading ? 'blur-sm scale-105 opacity-80' : ''}`} 
                       />
+                    ) : (
+                      <img 
+                        src="/locked-content.png" 
+                        alt="Locked Reel"
+                        className="w-full h-full object-cover blur-sm opacity-60"
+                        onContextMenu={(e) => e.preventDefault()}
+                        onDragStart={(e) => e.preventDefault()}
+                      />
+                    )}
+
+                    {/* Loading Spinner for newly unlocked content */}
+                    {unlocked && isMediaLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-20">
+                        <Loader2 size={32} className="animate-spin text-purple-400 drop-shadow-lg" />
+                      </div>
+                    )}
 
                       {reel.isPremium && (
                         <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2 pointer-events-none">
@@ -299,13 +390,15 @@ export default function PublicProfileClient({
 
                           {/* Unlock Button */}
                           <button
-                            className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest text-white rounded-full transition-all duration-300 hover:scale-105 active:scale-95"
+                            onClick={() => setPendingTransaction({ type: 'reel', id: reel.id, amount: reel.price || 0, name: `Premium Reel` })}
+                            disabled={loading}
+                            className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest text-white rounded-full transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50"
                             style={{
                               background: 'linear-gradient(135deg, #7c3aed, #a855f7, #ec4899)',
                               boxShadow: '0 0 16px rgba(168,85,247,0.55)'
                             }}
                           >
-                            🔓 Unlock
+                            {loading ? <Loader2 size={10} className="animate-spin" /> : "🔓 Unlock"}
                           </button>
                         </div>
                       )}
@@ -390,7 +483,7 @@ export default function PublicProfileClient({
                             price={profile.creatorProfile?.tier1Price || 500}
                             icon={<Heart size={20} className="text-emerald-500" />}
                             features={["Access to all Premium Posts", "Direct Messaging", "Loyalty Badge"]}
-                            onSelect={handleSubscribe}
+                            onSelect={(tier: 1, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Tier 1 Membership' })}
                             disabled={subscribing}
                             currentTier={subscriptionTier}
                         />
@@ -401,7 +494,7 @@ export default function PublicProfileClient({
                             price={profile.creatorProfile?.tier2Price || 1500}
                             icon={<Star size={20} className="text-purple-500" />}
                             features={["Tier 1 Access", "Priority Support", "HD Content Unlock"]}
-                            onSelect={handleSubscribe}
+                            onSelect={(tier: 2, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Tier 2 Membership' })}
                             disabled={subscribing}
                             currentTier={subscriptionTier}
                             highlight
@@ -413,7 +506,7 @@ export default function PublicProfileClient({
                             price={profile.creatorProfile?.tier3Price || 3500}
                             icon={<Crown size={20} className="text-amber-500" />}
                             features={["All Previous Access", "Private Video Request", "Physical Gift Eligibility"]}
-                            onSelect={handleSubscribe}
+                            onSelect={(tier: 3, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Tier 3 Membership' })}
                             disabled={subscribing}
                             currentTier={subscriptionTier}
                         />
@@ -429,6 +522,17 @@ export default function PublicProfileClient({
             </div>
         )}
       </AnimatePresence>
+
+      {/* Confirmation Modal */}
+      <PurchaseConfirmationModal
+        isOpen={!!pendingTransaction}
+        onClose={() => setPendingTransaction(null)}
+        onConfirm={executePendingTransaction}
+        itemName={pendingTransaction?.name || ""}
+        itemPrice={pendingTransaction?.amount || 0}
+        currentBalance={currentUserBalance}
+        loading={subscribing || loading}
+      />
     </div>
   );
 }

@@ -9,7 +9,7 @@ export async function createPost(formData: FormData) {
     const imageUrl = formData.get("imageUrl") as string;
     const caption = formData.get("caption") as string;
     const isPremium = formData.get("isPremium") === "true";
-    const price = formData.get("price") ? parseInt(formData.get("price") as string) : null;
+    const price = formData.get("price") ? parseInt(formData.get("price") as string, 10) : null;
 
     if (!authorId || !imageUrl) {
       return { success: false, error: "Missing required fields" };
@@ -43,7 +43,7 @@ export async function createReel(formData: FormData) {
     const videoUrl = formData.get("videoUrl") as string;
     const caption = formData.get("caption") as string;
     const isPremium = formData.get("isPremium") === "true";
-    const price = formData.get("price") ? parseInt(formData.get("price") as string) : null;
+    const price = formData.get("price") ? parseInt(formData.get("price") as string, 10) : null;
 
     if (!authorId || !videoUrl) {
       return { success: false, error: "Missing required fields" };

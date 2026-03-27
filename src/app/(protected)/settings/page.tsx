@@ -22,7 +22,9 @@ export default async function SettingsPage() {
           creatorStatus: true,
           creatorProfile: {
             select: {
-              subscriptionPrice: true
+              tier1Price: true,
+              tier2Price: true,
+              tier3Price: true
             }
           }
         }

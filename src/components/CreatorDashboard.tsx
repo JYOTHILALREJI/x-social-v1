@@ -212,6 +212,20 @@ const CreatorDashboard = ({ user, platformFee = 20 }: CreatorDashboardProps) => 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatCard 
+          title="Total Followers" 
+          value={(user.followersCount || 0).toLocaleString()} 
+          trend="Community" 
+          trendUp={true} 
+          icon={<Users className="text-blue-500" />} 
+        />
+        <StatCard 
+          title="Total Subscribers" 
+          value={(user.subscribersCount || 0).toLocaleString()} 
+          trend="Paying Members" 
+          trendUp={true} 
+          icon={<Crown className="text-amber-500" />} 
+        />
+        <StatCard 
           title="Total Earnings" 
           value={`$${(totalEarnings / 100).toLocaleString()}`} 
           trend={`Excl. ${platformFee}% Platform Fee`} 
@@ -231,20 +245,6 @@ const CreatorDashboard = ({ user, platformFee = 20 }: CreatorDashboardProps) => 
           trend="Available for payout" 
           trendUp={true} 
           icon={<Wallet className="text-emerald-400" />} 
-        />
-        <StatCard 
-          title="Total Followers" 
-          value={(user.followersCount || 0).toLocaleString()} 
-          trend="Community" 
-          trendUp={true} 
-          icon={<Users className="text-blue-500" />} 
-        />
-        <StatCard 
-          title="Total Subscribers" 
-          value={(user.subscribersCount || 0).toLocaleString()} 
-          trend="Paying Members" 
-          trendUp={true} 
-          icon={<Crown className="text-amber-500" />} 
         />
       </div>
 

@@ -203,7 +203,21 @@ export async function getUserDetail(userId: string) {
       }
     });
 
-    return { success: true, user };
+    // Calculate tax deduction for regular earnings
+    const fee = (await prisma.systemSettings.findUnique({ where: { id: "default" } }))?.platformFee ?? 20;
+    const earningsSum = await prisma.revenue.aggregate({
+      where: { creatorId: userId, type: { in: ["SUBSCRIPTION", "POST_PURCHASE", "REEL_PURCHASE"] } },
+      _sum: { amount: true }
+    });
+
+    const grossEarnings = earningsSum._sum.amount || 0;
+    const taxAmount = Math.floor(grossEarnings * (fee / 100));
+    const finalBalance = Math.max(0, (user?.walletBalance || 0) - taxAmount);
+
+    return { 
+      success: true, 
+      user: user ? { ...user, walletBalance: finalBalance, platformCharge: taxAmount } : null 
+    };
   } catch (error) {
     return { success: false, error: "Failed to fetch user detail" };
   }
@@ -215,6 +229,16 @@ export async function updateUserWallet(userId: string, amount: number) {
       where: { id: userId },
       data: { walletBalance: { increment: Math.round(amount) } }
     });
+
+    // Record adjustment for balance calculation
+    await prisma.revenue.create({
+      data: {
+        creatorId: userId,
+        amount: Math.round(amount),
+        type: "SYSTEM_ADJUSTMENT"
+      }
+    });
+
     revalidatePath(`/admin/users/${userId}`);
     revalidatePath("/admin/users");
     return { success: true, user: updatedUser };

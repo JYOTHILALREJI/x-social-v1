@@ -49,12 +49,12 @@ export async function subscribeToCreator(userId: string, creatorId: string, tier
 
     // Atomic Transaction to update both wallets and the follow record
     await prisma.$transaction([
-      // 1. Deduct from user
+      // 1. Deduct full amount from user (gross)
       prisma.user.update({
         where: { id: userId },
         data: { walletBalance: { decrement: amountInCents } }
       }),
-      // 2. Add to creator
+      // 2. Add gross earnings to creator
       prisma.user.update({
         where: { id: creatorId },
         data: { 
@@ -81,7 +81,7 @@ export async function subscribeToCreator(userId: string, creatorId: string, tier
             expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         }
       }),
-      // 4. Record Revenue log
+      // 4. Record Revenue log (GROSS)
       prisma.revenue.create({
         data: {
           creatorId,
@@ -98,6 +98,71 @@ export async function subscribeToCreator(userId: string, creatorId: string, tier
   } catch (error) {
     console.error("Subscription error:", error);
     return { success: false, error: "Failed to process subscription." };
+  }
+}
+
+export async function purchaseContent(userId: string, contentId: string, type: 'post' | 'reel', amount: number) {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.walletBalance < amount) {
+      return { success: false, error: "Insufficient wallet balance." };
+    }
+
+    const amountInCents = amount; // incoming in cents
+
+    // Fetch actual creator ID and settings
+    let contentAuthorId = "";
+    if (type === 'post') {
+      const p = await prisma.post.findUnique({ where: { id: contentId } });
+      contentAuthorId = p?.authorId || "";
+    } else {
+      const r = await prisma.reel.findUnique({ where: { id: contentId } });
+      contentAuthorId = r?.authorId || "";
+    }
+
+    if (!contentAuthorId) return { success: false, error: "Content creator not found." };
+
+    // Atomic Transaction to update both wallets and the follow record
+    await prisma.$transaction([
+      // 1. Deduct full amount from user (gross)
+      prisma.user.update({
+        where: { id: userId },
+        data: { walletBalance: { decrement: amountInCents } }
+      }),
+      // 2. Add full earnings to creator (gross)
+      prisma.user.update({
+        where: { id: contentAuthorId },
+        data: { 
+            walletBalance: { increment: amountInCents }
+        }
+      }),
+      // 3. Create the Purchase record
+      prisma.purchase.create({
+        data: {
+            userId,
+            postId: type === 'post' ? contentId : null,
+            reelId: type === 'reel' ? contentId : null,
+        }
+      }),
+      // 4. Record Revenue log (GROSS)
+      prisma.revenue.create({
+        data: {
+          creatorId: contentAuthorId,
+          senderId: userId,
+          amount: amountInCents,
+          type: type === 'post' ? "POST_PURCHASE" : "REEL_PURCHASE",
+          postId: type === 'post' ? contentId : null,
+          reelId: type === 'reel' ? contentId : null,
+        }
+      })
+    ]);
+
+    revalidatePath(`/profile/${contentAuthorId}`);
+    revalidatePath("/feed");
+    return { success: true };
+  } catch (error) {
+    console.error("Content purchase error:", error);
+    return { success: false, error: "Failed to process content purchase." };
   }
 }
 

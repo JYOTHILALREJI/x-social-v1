@@ -1,6 +1,10 @@
+"use client";
 import React from 'react';
 import Image from 'next/image';
-import { Heart, MessageCircle, Send, Lock, Crown } from 'lucide-react';
+import { Heart, MessageCircle, Send, Lock, Crown, Loader2 } from 'lucide-react';
+import { purchaseContent } from '@/app/actions/user-actions';
+import { useRouter } from 'next/navigation';
+import PurchaseConfirmationModal from './PurchaseConfirmationModal';
 
 interface PostCardProps {
   post: {
@@ -17,10 +21,41 @@ interface PostCardProps {
     purchases?: any[];
   };
   isSubscribed?: boolean;
+  currentUserId: string;
+  currentUserBalance: number;
 }
 
-const PostCard = ({ post, isSubscribed = false }: PostCardProps) => {
-  const isUnlocked = !post.isPremium || isSubscribed || (post.purchases && post.purchases.length > 0);
+const PostCard = ({ post, isSubscribed = false, currentUserId, currentUserBalance }: PostCardProps) => {
+  const router = useRouter();
+  const [loadingMedia, setLoadingMedia] = React.useState(false);
+  const [unlocking, setUnlocking] = React.useState(false);
+  const [isUnlockedLocal, setIsUnlockedLocal] = React.useState(false);
+  const [refreshKey, setRefreshKey] = React.useState(0);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = React.useState(false);
+
+  const isUnlockedServer = !post.isPremium || isSubscribed || (post.purchases && post.purchases.length > 0);
+  const isUnlocked = isUnlockedServer || isUnlockedLocal;
+
+  const handleUnlock = async () => {
+    if (!post.price) return;
+    if (currentUserBalance < post.price) {
+      alert("Insufficient wallet balance.");
+      return;
+    }
+    
+    setUnlocking(true);
+    const res = await purchaseContent(currentUserId, post.id, 'post', post.price);
+    if (res.success) {
+      setLoadingMedia(true);
+      setIsUnlockedLocal(true);
+      setRefreshKey(prev => prev + 1);
+      setIsConfirmModalOpen(false);
+      router.refresh(); // Tells NextJS to refetch the server component props in the background
+    } else {
+      alert(res.error || "Failed to unlock");
+    }
+    setUnlocking(false);
+  };
 
   return (
     <article className="snap-start w-full bg-zinc-900/20 backdrop-blur-md rounded-[2.5rem] border border-zinc-900/50 overflow-hidden transition-all duration-500 hover:border-zinc-800">
@@ -48,12 +83,21 @@ const PostCard = ({ post, isSubscribed = false }: PostCardProps) => {
         {post.id && (
           <div className="relative aspect-square w-full rounded-3xl overflow-hidden mb-8 border border-zinc-800 group/media">
             <Image 
-              src={`/api/media/post/${post.id}`} 
+              src={isUnlocked ? `/api/media/post/${post.id}?t=${refreshKey}` : "/locked-content.png"} 
               alt="Post content" 
               fill 
-              className={`object-cover transition-all duration-700 ${!isUnlocked ? 'blur-2xl scale-110 opacity-40' : 'group-hover/media:scale-105'}`} 
+              onLoad={() => setLoadingMedia(false)}
+              className={`object-cover transition-all duration-700 select-none pointer-events-none ${(!isUnlocked || loadingMedia) ? 'blur-sm scale-105 opacity-80' : 'group-hover/media:scale-105'}`} 
               unoptimized 
+              onContextMenu={(e) => e.preventDefault()}
+              onDragStart={(e) => e.preventDefault()}
             />
+            {/* Loading Spinner for newly unlocked content */}
+            {isUnlocked && loadingMedia && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-20">
+                <Loader2 size={40} className="animate-spin text-purple-400 drop-shadow-lg" />
+              </div>
+            )}
             {!isUnlocked && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-black/40 via-black/10 to-black/60 backdrop-blur-[3px]">
                 {/* Lock Icon */}
@@ -76,13 +120,17 @@ const PostCard = ({ post, isSubscribed = false }: PostCardProps) => {
 
                 {/* Unlock Button */}
                 <button
-                  className="relative px-8 py-3 text-[10px] font-black uppercase tracking-widest text-white rounded-full overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95"
+                  onClick={() => setIsConfirmModalOpen(true)}
+                  disabled={unlocking}
+                  className="relative px-8 py-3 text-[10px] font-black uppercase tracking-widest text-white rounded-full overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
                   style={{
                     background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%)',
                     boxShadow: '0 0 24px rgba(168,85,247,0.6), 0 4px 20px rgba(0,0,0,0.4)'
                   }}
                 >
-                  <span className="relative z-10">🔓 Unlock Now</span>
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {unlocking ? <Loader2 size={12} className="animate-spin" /> : "🔓 Unlock Now"}
+                  </span>
                 </button>
               </div>
             )}
@@ -107,6 +155,18 @@ const PostCard = ({ post, isSubscribed = false }: PostCardProps) => {
           </button>
         </div>
       </div>
+
+      {post.price != null && (
+        <PurchaseConfirmationModal
+          isOpen={isConfirmModalOpen}
+          onClose={() => setIsConfirmModalOpen(false)}
+          onConfirm={handleUnlock}
+          itemName={`Premium Post by @${post.author.username}`}
+          itemPrice={post.price}
+          currentBalance={currentUserBalance}
+          loading={unlocking}
+        />
+      )}
     </article>
   );
 };

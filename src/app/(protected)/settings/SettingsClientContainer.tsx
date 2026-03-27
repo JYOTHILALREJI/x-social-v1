@@ -11,7 +11,9 @@ interface SettingsClientContainerProps {
     username: string;
     creatorStatus: string;
     creatorProfile: {
-      subscriptionPrice: number;
+      tier1Price: number;
+      tier2Price: number;
+      tier3Price: number;
     } | null;
   };
 }

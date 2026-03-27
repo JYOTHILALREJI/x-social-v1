@@ -1,6 +1,54 @@
 import { prisma } from "@/app/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import https from "https";
+import http from "http";
+
+function fetchImageProxy(urlStr: string): Promise<{ buffer: Buffer, contentType: string, status: number, statusText: string }> {
+  return new Promise((resolve, reject) => {
+    const isHttps = urlStr.startsWith('https');
+    const client = isHttps ? https : http;
+    
+    const req = client.get(urlStr, { 
+      family: 4,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Referer": "http://localhost:3000/",
+      }
+    }, (res) => {
+      const statusCode = res.statusCode || 200;
+      const statusMessage = res.statusMessage || "OK";
+      const contentType = res.headers['content-type'] || 'application/octet-stream';
+
+      if (statusCode && statusCode >= 300 && statusCode < 400 && res.headers.location) {
+        let redirectUrl = res.headers.location;
+        if (!redirectUrl.startsWith('http')) {
+          const urlObj = new URL(urlStr);
+          redirectUrl = urlObj.protocol + '//' + urlObj.host + redirectUrl;
+        }
+        resolve(fetchImageProxy(redirectUrl));
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        resolve({
+          buffer: Buffer.concat(chunks),
+          contentType,
+          status: statusCode,
+          statusText: statusMessage
+        });
+      });
+    });
+
+    req.on('error', (err) => reject(err));
+    req.setTimeout(10000, () => {
+      req.destroy();
+      reject(new Error("Timeout getting proxy image"));
+    });
+  });
+}
 
 // A small transparent pixel placeholder for locked content
 const BLURRED_PLACEHOLDER_B64 =
@@ -114,12 +162,32 @@ export async function GET(
     }
 
     if (data.startsWith("http")) {
-      return NextResponse.redirect(data);
+      try {
+        console.log(`[MEDIA PROXY] Fetching URL: ${data}`);
+        
+        const proxyRes = await fetchImageProxy(data);
+        
+        if (proxyRes.status >= 400) {
+          console.error(`[MEDIA PROXY] Failed to fetch source: ${proxyRes.status} ${proxyRes.statusText} for URL: ${data}`);
+          return new NextResponse(`Failed to fetch source: ${proxyRes.status}`, { status: 502 });
+        }
+      
+        return new NextResponse(new Uint8Array(proxyRes.buffer), {
+          headers: {
+            "Content-Type": proxyRes.contentType,
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "Content-Disposition": "inline",
+          },
+        });
+      } catch (error) {
+        console.error(`[MEDIA PROXY] ERROR fetching URL ${data}:`, error);
+        return new NextResponse(`Proxy error: ${error instanceof Error ? error.message : "Internal Error"}`, { status: 502 });
+      }
     }
 
-    return new NextResponse("Invalid Data", { status: 400 });
+    return new NextResponse("Invalid Data Source", { status: 400 });
   } catch (error) {
-    console.error("Error serving media:", error);
+    console.error("Critical Error serving media:", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

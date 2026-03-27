@@ -15,6 +15,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body 
         className="antialiased bg-black text-white min-h-screen overflow-x-hidden"
         suppressHydrationWarning
+        onContextMenu={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.tagName === 'IMG' || target.tagName === 'VIDEO' || target.closest('.no-right-click')) {
+            e.preventDefault();
+          }
+        }}
+        onDragStart={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.tagName === 'IMG' || target.tagName === 'VIDEO') {
+            e.preventDefault();
+          }
+        }}
       >
         {/* Only show main Navbar if we are NOT in Admin or Auth paths */}
         {!hideMainNavbar && <Navbar />}

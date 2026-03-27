@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { handleLogoutAction } from "@/app/actions/auth";
 
-import { updateSubscriptionPrice } from '@/app/actions/creator-actions';
+import { updateTieredPrices } from '@/app/actions/creator-actions';
 
 interface UserSettingsProps {
   onBecomeCreatorClick?: () => void;
@@ -17,7 +17,9 @@ interface UserSettingsProps {
     username: string;
     creatorStatus: string;
     creatorProfile: {
-      subscriptionPrice: number;
+      tier1Price: number;
+      tier2Price: number;
+      tier3Price: number;
     } | null;
   };
 }
@@ -25,7 +27,11 @@ interface UserSettingsProps {
 export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator, user }: UserSettingsProps) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [subPrice, setSubPrice] = useState(user?.creatorProfile?.subscriptionPrice || 0);
+  
+  const [tier1, setTier1] = useState(user?.creatorProfile?.tier1Price || 0);
+  const [tier2, setTier2] = useState(user?.creatorProfile?.tier2Price || 0);
+  const [tier3, setTier3] = useState(user?.creatorProfile?.tier3Price || 0);
+  
   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
 
   const isVerifiedCreator = user?.creatorStatus === 'APPROVED';
@@ -33,12 +39,12 @@ export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator, 
   const handleUpdatePrice = async () => {
     if (!user) return;
     setIsUpdatingPrice(true);
-    const res = await updateSubscriptionPrice(user.id, subPrice);
+    const res = await updateTieredPrices(user.id, tier1, tier2, tier3);
     setIsUpdatingPrice(false);
     if (res.success) {
-      alert("Subscription price updated successfully!");
+      alert("Subscription tiers updated successfully!");
     } else {
-      alert(res.error || "Failed to update price");
+      alert(res.error || "Failed to update prices");
     }
   };
 
@@ -110,33 +116,70 @@ export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator, 
 
       {isVerifiedCreator && (
         <div className="space-y-4">
-          <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] ml-4">
-            Creator Settings
-          </h2>
-          <div className="bg-purple-500/5 border border-purple-500/20 rounded-[2.5rem] p-8 space-y-8 backdrop-blur-md">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div className="space-y-1">
-                <h3 className="text-xl font-black uppercase italic tracking-tighter text-purple-500">Subscription Price</h3>
-                <p className="text-zinc-500 text-xs font-medium">Set your monthly subscription price for followers.</p>
-              </div>
-              <div className="flex items-center gap-4 w-full md:w-auto">
-                <div className="relative flex-1 md:w-32">
+          <div className="flex items-center justify-between px-4">
+            <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-[0.2em]">
+              Creator Tier Settings
+            </h2>
+            <button 
+              onClick={handleUpdatePrice}
+              disabled={isUpdatingPrice}
+              className="text-[10px] font-black uppercase tracking-widest text-purple-500 hover:text-white transition-colors"
+            >
+              {isUpdatingPrice ? "Processing..." : "Save All Tiers"}
+            </button>
+          </div>
+          
+          <div className="bg-purple-500/5 border border-purple-500/20 rounded-[2.5rem] p-8 space-y-10 backdrop-blur-md">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Tier 1 */}
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-black uppercase italic tracking-tighter text-zinc-300">Tier 1 <span className="text-[10px] not-italic text-zinc-500 font-bold ml-2">Bronze</span></h3>
+                </div>
+                <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-500 font-black">$</span>
                   <input 
                     type="number" 
-                    value={subPrice}
-                    onChange={(e) => setSubPrice(Number(e.target.value))}
+                    value={tier1}
+                    onChange={(e) => setTier1(Number(e.target.value))}
                     className="w-full pl-8 pr-4 py-4 bg-black border border-purple-500/30 rounded-2xl text-white font-black focus:outline-none focus:border-purple-500 transition-all"
                     placeholder="0"
                   />
                 </div>
-                <button 
-                  onClick={handleUpdatePrice}
-                  disabled={isUpdatingPrice}
-                  className="px-8 py-4 bg-purple-600 hover:bg-purple-500 text-white font-black uppercase italic rounded-2xl disabled:opacity-50 transition-all shadow-lg shadow-purple-500/20 shrink-0"
-                >
-                  {isUpdatingPrice ? "Saving..." : "Save Amount"}
-                </button>
+              </div>
+
+              {/* Tier 2 */}
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-black uppercase italic tracking-tighter text-amber-500">Tier 2 <span className="text-[10px] not-italic text-zinc-500 font-bold ml-2">Silver</span></h3>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-500 font-black">$</span>
+                  <input 
+                    type="number" 
+                    value={tier2}
+                    onChange={(e) => setTier2(Number(e.target.value))}
+                    className="w-full pl-8 pr-4 py-4 bg-black border border-amber-500/30 rounded-2xl text-white font-black focus:outline-none focus:border-amber-500 transition-all"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              {/* Tier 3 */}
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-black uppercase italic tracking-tighter text-emerald-500">Tier 3 <span className="text-[10px] not-italic text-zinc-500 font-bold ml-2">Gold</span></h3>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 font-black">$</span>
+                  <input 
+                    type="number" 
+                    value={tier3}
+                    onChange={(e) => setTier3(Number(e.target.value))}
+                    className="w-full pl-8 pr-4 py-4 bg-black border border-emerald-500/30 rounded-2xl text-white font-black focus:outline-none focus:border-emerald-500 transition-all"
+                    placeholder="0"
+                  />
+                </div>
               </div>
             </div>
 

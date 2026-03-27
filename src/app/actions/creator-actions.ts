@@ -3,18 +3,22 @@
 import { prisma } from "@/app/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function updateSubscriptionPrice(userId: string, amount: number) {
+export async function updateTieredPrices(userId: string, tier1: number, tier2: number, tier3: number) {
   try {
     await prisma.creatorProfile.update({
       where: { userId },
-      data: { subscriptionPrice: amount },
+      data: { 
+        tier1Price: tier1,
+        tier2Price: tier2,
+        tier3Price: tier3
+      },
     });
     revalidatePath("/profile");
     revalidatePath("/settings");
     return { success: true };
   } catch (error) {
-    console.error("Failed to update subscription price:", error);
-    return { success: false, error: "Failed to update subscription price" };
+    console.error("Failed to update tiered prices:", error);
+    return { success: false, error: "Failed to update tiered prices" };
   }
 }
 

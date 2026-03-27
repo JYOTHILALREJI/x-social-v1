@@ -190,16 +190,16 @@ export default function CreateContentModal({ isOpen, onClose, type, authorId }: 
                {isPremium && (
                  <div className="space-y-3 pt-4 border-t border-purple-500/10 transition-all animate-in fade-in slide-in-from-top-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-purple-400/80 pl-2">
-                      Unlock Price ($)
+                      Unlock Price (in cents)
                     </label>
                     <div className="relative">
-                      <span className="absolute left-6 top-1/2 -translate-y-1/2 text-purple-500 font-bold">$</span>
+                      <span className="absolute left-6 top-1/2 -translate-y-1/2 text-purple-500 font-bold">¢</span>
                       <input
                         type="number"
                         value={price}
                         onChange={(e) => setPrice(e.target.value)}
-                        placeholder="0.00"
-                        className="w-full bg-black border border-purple-500/20 rounded-2xl p-4 pl-10 text-white focus:outline-none focus:border-purple-500 transition-all font-black text-xl placeholder:text-zinc-800"
+                        placeholder="500"
+                        className="w-full bg-black border border-purple-500/20 rounded-2xl p-4 pl-12 text-white focus:outline-none focus:border-purple-500 transition-all font-black text-xl placeholder:text-zinc-800"
                         required={isPremium}
                         min="1"
                       />

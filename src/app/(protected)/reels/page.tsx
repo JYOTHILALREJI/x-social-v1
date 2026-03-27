@@ -1,18 +1,33 @@
-// import ReelsView from '@/components/ReelsView';
-// export default function ReelsPage() { return <ReelsView />; }
-
 import { prisma } from "@/app/lib/prisma";
 import ReelsView from "@/components/ReelsView";
 import { VideoOff } from 'lucide-react';
+import { cookies } from "next/headers";
 
 export default async function ReelsPage() {
-  // 1. Fetch real reels from the database using Prisma 7
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("auth_session")?.value;
+  let userId = "";
+
+  if (sessionToken) {
+    const session = await prisma.session.findUnique({
+      where: { sessionToken },
+      select: { user: { select: { id: true } } }
+    });
+    userId = session?.user?.id || "";
+  }
+
+  // 1. Fetch real reels from the database
   const dbReels = await prisma.reel.findMany({
     take: 10,
     include: {
       author: {
-        select: { username: true }
-      }
+        select: { 
+            id: true,
+            username: true,
+            follows: { where: { followerId: userId } }
+         }
+      },
+      purchases: { where: { userId } }
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -33,11 +48,21 @@ export default async function ReelsPage() {
   }
 
   // 3. Transform database data into the format expected by the frontend
-  const formattedReels = dbReels.map(r => ({
-    id: r.id,
-    url: r.videoUrl,
-    user: `@${r.author.username}`
-  }));
+  const formattedReels = dbReels.map(r => {
+    // Current user's relationship to author
+    const isOwner = userId === r.authorId;
+    const follow = r.author.follows[0];
+    const isSubscribed = !!follow && (follow.subscriptionTier || 0) > 0;
+    const isPurchased = r.purchases.length > 0;
+    const isUnlocked = !r.isPremium || isOwner || isSubscribed || isPurchased;
+
+    return {
+      id: r.id,
+      url: r.videoUrl,
+      user: `@${r.author.username}`,
+      isUnlocked
+    };
+  });
 
   return <ReelsView initialData={formattedReels} />;
 }

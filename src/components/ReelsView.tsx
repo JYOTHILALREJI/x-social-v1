@@ -7,11 +7,14 @@ interface ReelData {
   id: string;
   url: string;
   user: string;
+  isUnlocked?: boolean;
 }
 
 interface ReelsViewProps {
   initialData: ReelData[];
 }
+
+import { Lock } from 'lucide-react';
 
 const ReelsView = ({ initialData }: ReelsViewProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,15 +39,38 @@ const ReelsView = ({ initialData }: ReelsViewProps) => {
     >
       {reels.map((reel, i) => (
         <div key={reel.id} className="h-screen w-full flex-shrink-0 snap-start relative">
-          <div className="h-full w-full max-w-[500px] mx-auto bg-zinc-900 relative">
-            <video 
-              src={reel.url} 
-              className="h-full w-full object-cover"
-              loop 
-              muted 
-              autoPlay={currentIndex === i} 
-              playsInline
-            />
+          <div className="h-full w-full max-w-[500px] mx-auto bg-zinc-900 relative overflow-hidden">
+            {reel.isUnlocked ? (
+              <video 
+                src={`/api/media/reel/${reel.id}`} 
+                onContextMenu={(e) => e.preventDefault()}
+                onDragStart={(e) => e.preventDefault()}
+                controlsList="nodownload noplaybackrate"
+                disablePictureInPicture
+                className="h-full w-full object-cover select-none pointer-events-none"
+                loop 
+                muted 
+                autoPlay={currentIndex === i} 
+                playsInline
+              />
+            ) : (
+              <div className="relative h-full w-full">
+                <img 
+                  src="/locked-content.png" 
+                  alt="Locked Reel"
+                  className="h-full w-full object-cover blur-sm opacity-60"
+                  onContextMenu={(e) => e.preventDefault()}
+                  onDragStart={(e) => e.preventDefault()}
+                />
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40">
+                   <div className="w-16 h-16 rounded-full bg-purple-600 flex items-center justify-center mb-4 shadow-2xl shadow-purple-500/50">
+                     <Lock size={30} className="text-white" />
+                   </div>
+                   <p className="text-sm font-black uppercase tracking-widest text-white italic">Premium Content</p>
+                   <p className="text-[10px] font-bold uppercase tracking-tighter text-zinc-400 mt-2">Subscribe to unlock</p>
+                </div>
+              </div>
+            )}
             
             {/* Overlay UI - Premium Aesthetic */}
             <div className="absolute bottom-20 left-6 z-10 text-white drop-shadow-lg">

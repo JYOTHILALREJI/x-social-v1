@@ -142,6 +142,8 @@ const MainFeed = async () => {
               <PostCard 
                 post={post} 
                 isSubscribed={subscriptions.includes(post.authorId)} 
+                currentUserId={userId}
+                currentUserBalance={user?.walletBalance || 0}
               />
               
               {/* INJECT SUGGESTED SECTION after 2 posts */}

@@ -23,6 +23,7 @@ import {
   ExternalLink,
   ChevronRight,
   Settings,
+  Sparkles,
   Image as ImageIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -157,14 +158,23 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                 </div>
             </div>
 
-            <div className="mt-10 pt-10 border-t border-zinc-900 space-y-4">
+            <div className="mt-10 pt-10 border-t border-zinc-900 space-y-6">
                 <div className="flex items-center justify-between text-zinc-400">
-                    <span className="text-[10px] font-black uppercase tracking-widest">Platform Wallet</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">User Balance</span>
                     <div className="flex items-center gap-1.5 text-white font-black text-xl">
                         <Wallet size={16} className="text-emerald-500" />
                         ${(userData.walletBalance / 100).toFixed(2)}
                     </div>
                 </div>
+                {userData.role === 'CREATOR' && (
+                    <div className="flex items-center justify-between text-zinc-400">
+                        <span className="text-[10px] font-black uppercase tracking-widest">Commission (20%)</span>
+                        <div className="flex items-center gap-1.5 text-purple-400 font-black text-xl">
+                            <Sparkles size={16} className="text-purple-500" />
+                            ${((userData.platformCharge || 0) / 100).toFixed(2)}
+                        </div>
+                    </div>
+                )}
             </div>
           </motion.div>
 
@@ -172,11 +182,19 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
           <div className="grid grid-cols-2 gap-4">
              <div className="p-6 bg-zinc-900/30 border border-zinc-900 rounded-3xl text-center">
                 <p className="text-[10px] font-black uppercase text-zinc-500 mb-2">Followers</p>
-                <p className="text-2xl font-black">{userData._count.followers}</p>
+                <p className="text-2xl font-black">{userData.followersCount || 0}</p>
+             </div>
+             <div className="p-6 bg-zinc-900/30 border border-zinc-900 rounded-3xl text-center">
+                <p className="text-[10px] font-black uppercase text-zinc-500 mb-2">Subscribers</p>
+                <p className="text-2xl font-black">{userData.subscribersCount || 0}</p>
              </div>
              <div className="p-6 bg-zinc-900/30 border border-zinc-900 rounded-3xl text-center">
                 <p className="text-[10px] font-black uppercase text-zinc-500 mb-2">Following</p>
-                <p className="text-2xl font-black">{userData._count.follows}</p>
+                <p className="text-2xl font-black">{userData.followingCount || 0}</p>
+             </div>
+             <div className="p-6 bg-zinc-900/30 border border-zinc-900 rounded-3xl text-center">
+                <p className="text-[10px] font-black uppercase text-zinc-500 mb-2">Content</p>
+                <p className="text-2xl font-black">{(userData._count.posts || 0) + (userData._count.reels || 0)}</p>
              </div>
           </div>
         </div>
@@ -393,68 +411,100 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                 </div>
              </div>
           </div>
+        </div>
+      </div>
 
-          {/* New Finance History Section */}
-          <div className="pt-10 border-t border-zinc-900 space-y-12">
-             {/* Earnings section (if creator) */}
-             {userData.revenues?.length > 0 && (
-                <div className="space-y-6">
-                    <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3">
-                        <TrendingUp size={20} className="text-emerald-500" />
+      <div className="pt-20 border-t border-zinc-900 space-y-20">
+         {userData.revenues?.length > 0 && (
+            <div className="space-y-8">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-4">
+                        <TrendingUp size={28} className="text-emerald-500" />
                         Revenue Stream (Earnings)
                     </h3>
-                    <div className="grid gap-3">
-                        {userData.revenues.map((rev: any) => (
-                            <div key={rev.id} className="p-5 bg-zinc-900/30 border border-zinc-900 rounded-2xl flex items-center justify-between group hover:border-emerald-500/30 transition-all">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 font-black text-xs">
-                                        +
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-black uppercase text-white">Received from {rev.sender?.username || "System"}</p>
-                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{rev.type.replace('_', ' ')}</p>
-                                    </div>
+                    <span className="text-[10px] font-black uppercase text-zinc-500 bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800">
+                        Total Records: {userData.revenues.length}
+                    </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {userData.revenues.map((rev: any) => (
+                        <div key={rev.id} className="p-6 bg-zinc-950 border border-zinc-900 rounded-3xl flex items-center justify-between group hover:border-emerald-500/30 transition-all shadow-xl">
+                            <div className="flex items-center gap-6">
+                                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 font-black text-xs">
+                                    +
                                 </div>
-                                <div className="text-right">
-                                    <p className="font-black text-emerald-500">${(rev.amount / 100).toFixed(2)}</p>
-                                    <p className="text-[9px] text-zinc-600 font-mono tracking-tighter">{new Date(rev.createdAt).toLocaleDateString()}</p>
+                                <div>
+                                    <p className="text-sm font-bold text-white flex items-center gap-2">
+                                        Received from 
+                                        {rev.sender ? (
+                                            <Link 
+                                                href={`/admin/users/${rev.sender.id}`}
+                                                className="text-emerald-400 hover:text-emerald-300 underline decoration-emerald-500/30 underline-offset-4 decoration-2 transition-colors italic"
+                                            >
+                                                {rev.sender.username}
+                                            </Link>
+                                        ) : (
+                                            <span className="text-zinc-500 italic">System</span>
+                                        )}
+                                    </p>
+                                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">{rev.type.replace('_', ' ')}</p>
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                            <div className="text-right">
+                                <p className="text-xl font-black text-emerald-500 italic">${(rev.amount / 100).toFixed(2)}</p>
+                                <p className="text-xs text-zinc-600 font-mono tracking-tighter mt-1 opacity-70">{new Date(rev.createdAt).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    ))}
                 </div>
-             )}
+            </div>
+         )}
 
-             {/* Spendings section */}
-             {userData.spendings?.length > 0 && (
-                <div className="space-y-6">
-                    <h3 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3">
-                        <DollarSign size={20} className="text-red-500" />
+         {/* Spendings section */}
+         {userData.spendings?.length > 0 && (
+            <div className="space-y-8">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-4">
+                        <DollarSign size={28} className="text-rose-500" />
                         Spending History (Outgoing)
                     </h3>
-                    <div className="grid gap-3">
-                        {userData.spendings.map((spend: any) => (
-                            <div key={spend.id} className="p-5 bg-zinc-900/30 border border-zinc-900 rounded-2xl flex items-center justify-between group hover:border-red-500/30 transition-all">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 font-black text-xs">
-                                        -
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-black uppercase text-white">Paid to {spend.creator?.username}</p>
-                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{spend.type.replace('_', ' ')}</p>
-                                    </div>
+                    <span className="text-[10px] font-black uppercase text-zinc-500 bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800">
+                        Total Records: {userData.spendings.length}
+                    </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {userData.spendings.map((spend: any) => (
+                        <div key={spend.id} className="p-6 bg-zinc-950 border border-zinc-900 rounded-3xl flex items-center justify-between group hover:border-rose-500/30 transition-all shadow-xl">
+                            <div className="flex items-center gap-6">
+                                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 font-black text-xs">
+                                    -
                                 </div>
-                                <div className="text-right">
-                                    <p className="font-black text-red-500">-${(spend.amount / 100).toFixed(2)}</p>
-                                    <p className="text-[9px] text-zinc-600 font-mono tracking-tighter">{new Date(spend.createdAt).toLocaleDateString()}</p>
+                                <div>
+                                    <p className="text-sm font-bold text-white flex items-center gap-2">
+                                        Paid to 
+                                        {spend.creator ? (
+                                            <Link 
+                                                href={`/admin/users/${spend.creator.id}`}
+                                                className="text-rose-400 hover:text-rose-300 underline decoration-rose-500/30 underline-offset-4 decoration-2 transition-colors italic"
+                                            >
+                                                {spend.creator.username}
+                                            </Link>
+                                        ) : (
+                                            <span className="text-zinc-500 italic">User</span>
+                                        )}
+                                    </p>
+                                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">{spend.type.replace('_', ' ')}</p>
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                            <div className="text-right">
+                                <p className="text-xl font-black text-rose-500 italic">-${(spend.amount / 100).toFixed(2)}</p>
+                                <p className="text-xs text-zinc-600 font-mono tracking-tighter mt-1 opacity-70">{new Date(spend.createdAt).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    ))}
                 </div>
-             )}
-          </div>
-        </div>
+            </div>
+         )}
       </div>
       {/* Wallet Confirmation Modal */}
       <AnimatePresence>
