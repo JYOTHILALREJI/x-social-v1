@@ -34,10 +34,10 @@ export default function PurchaseConfirmationModal({
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="bg-zinc-950 border border-zinc-800 rounded-[2rem] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col"
+            className="bg-zinc-950 border border-border-theme rounded-[2rem] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col"
           >
             {/* Header */}
-            <div className="p-6 text-center border-b border-zinc-900 bg-zinc-900/40 relative">
+            <div className="p-6 text-center border-b border-border-theme bg-zinc-900/40 relative">
               <h2 className="text-xl font-black italic uppercase tracking-tighter text-white">
                 Confirm <span className="text-purple-500">Purchase</span>
               </h2>
@@ -57,7 +57,7 @@ export default function PurchaseConfirmationModal({
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-zinc-900/50">
+              <div className="space-y-4 pt-4 border-t border-border-theme">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-zinc-500 font-bold uppercase tracking-widest flex items-center gap-2">
                     <Wallet size={14} className="text-zinc-600" /> Current Balance
@@ -72,7 +72,7 @@ export default function PurchaseConfirmationModal({
                   <span className="text-red-400 font-black">-${(itemPrice / 100).toFixed(2)}</span>
                 </div>
 
-                <div className="flex justify-between items-center pt-4 border-t border-zinc-900 border-dashed">
+                <div className="flex justify-between items-center pt-4 border-t border-border-theme border-dashed">
                   <span className="font-black uppercase tracking-widest text-[10px] text-zinc-400">
                     New Balance
                   </span>
@@ -93,7 +93,7 @@ export default function PurchaseConfirmationModal({
             </div>
 
             {/* Footer Actions */}
-            <div className="p-6 bg-zinc-900/50 flex gap-3 border-t border-zinc-900">
+            <div className="p-6 bg-zinc-900/50 flex gap-3 border-t border-border-theme">
               <button
                 onClick={onClose}
                 disabled={loading}
@@ -106,7 +106,7 @@ export default function PurchaseConfirmationModal({
                 disabled={loading || isInsufficient}
                 className={`flex-1 flex justify-center py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
                   isInsufficient 
-                  ? 'bg-zinc-900 text-zinc-600 cursor-not-allowed border border-zinc-800/50' 
+                  ? 'bg-zinc-900 text-zinc-600 cursor-not-allowed border border-border-theme' 
                   : 'bg-purple-600 text-white hover:bg-purple-500 shadow-lg shadow-purple-500/20 active:scale-95'
                 }`}
               >

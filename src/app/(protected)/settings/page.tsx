@@ -19,6 +19,12 @@ export default async function SettingsPage() {
         select: {
           id: true,
           username: true,
+          name: true,
+          dob: true,
+          bio: true,
+          image: true,
+          role: true,
+          isGhost: true,
           creatorStatus: true,
           creatorProfile: {
             select: {

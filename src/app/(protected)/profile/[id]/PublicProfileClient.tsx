@@ -11,6 +11,7 @@ import PurchaseConfirmationModal from '@/components/PurchaseConfirmationModal';
 interface PublicProfileClientProps {
   currentUserId: string;
   currentUserBalance: number;
+  currentIsGhost: boolean;
   profile: any;
   isInitialFollowing: boolean;
   initialSubscriptionTier: number;
@@ -21,6 +22,7 @@ import { useRouter } from 'next/navigation';
 export default function PublicProfileClient({ 
   currentUserId, 
   currentUserBalance,
+  currentIsGhost,
   profile, 
   isInitialFollowing, 
   initialSubscriptionTier 
@@ -65,6 +67,7 @@ export default function PublicProfileClient({
   const DEFAULT_AVATAR = "/default_user_profile/default-avatar.png";
 
   const performSubscribe = async (tier: 1 | 2 | 3, amount: number) => {
+    if (currentIsGhost) return;
     if (currentUserBalance < amount) {
         alert("Insufficient wallet balance. Please top up your wallet.");
         return;
@@ -127,6 +130,8 @@ export default function PublicProfileClient({
   };
 
   const handleFollowAction = async () => {
+    if (currentIsGhost && !isFollowing) return;
+    
     if (isFollowing) {
       setShowUnfollowModal(true);
     } else {
@@ -155,9 +160,9 @@ export default function PublicProfileClient({
     <div className="w-full min-h-screen bg-black text-white px-6 md:px-12 pt-10 pb-32">
       
       {/* --- TOP PROFILE SECTION --- */}
-      <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12 border-b border-zinc-900 pb-12">
+      <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12 border-b border-border-theme pb-12">
         {/* Profile Image */}
-        <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-zinc-900 border-2 border-zinc-800 relative overflow-hidden shrink-0 flex items-center justify-center font-black text-4xl text-zinc-600 uppercase">
+        <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-zinc-900 border-2 border-border-theme relative overflow-hidden shrink-0 flex items-center justify-center font-black text-4xl text-zinc-600 uppercase">
            {profile.image ? (
              <Image 
                src={profile.image} 
@@ -179,9 +184,18 @@ export default function PublicProfileClient({
         <div className="flex-1 space-y-6 text-center md:text-left w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex flex-col md:flex-row md:items-center gap-4">
-              <h1 className="text-3xl font-black italic uppercase tracking-tighter">{profile.username}</h1>
+              <div className="flex flex-col">
+                <h1 className="text-3xl font-black italic uppercase tracking-tighter leading-none mb-1">
+                  {profile.name || profile.username}
+                </h1>
+                {profile.name && (
+                  <span className="text-xs font-black text-purple-500/80 uppercase tracking-widest pl-1 italic">
+                    @{profile.username}
+                  </span>
+                )}
+              </div>
               {isCreator && (
-                <span className="px-3 py-1 bg-purple-500/10 text-purple-500 text-[10px] font-black uppercase rounded-full border border-purple-500/20">
+                <span className="px-3 py-1 bg-purple-500/10 text-purple-500 text-[10px] font-black uppercase rounded-full border border-purple-500/20 self-start mt-1">
                   Verified Creator
                 </span>
               )}
@@ -190,12 +204,13 @@ export default function PublicProfileClient({
             <div className="flex gap-3 w-full md:w-auto">
               {isCreator && (
                 <button 
+                  disabled={currentIsGhost}
                   onClick={() => setShowSubModal(true)}
                   className={`flex-1 md:flex-none px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-xs flex items-center justify-center gap-2 ${
                     isSubscribed 
                     ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
                     : "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-500/20"
-                  }`}
+                  } ${currentIsGhost ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   <Heart size={16} className={isSubscribed ? "fill-emerald-500" : ""} />
                   {isSubscribed ? `Tier ${subscriptionTier} Member` : "Join Family"}
@@ -203,12 +218,12 @@ export default function PublicProfileClient({
               )}
               <button 
                 onClick={handleFollowAction}
-                disabled={loading}
+                disabled={loading || (currentIsGhost && !isFollowing)}
                 className={`flex-1 md:flex-none px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-xs ${
                   isFollowing 
-                  ? "border border-zinc-800 hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-500 text-white" 
-                  : "bg-zinc-900 border border-zinc-800 text-white hover:bg-zinc-800"
-                }`}
+                  ? "border border-border-theme hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-500 text-white" 
+                  : "bg-zinc-900 border border-border-theme text-white hover:bg-zinc-800"
+                } ${(currentIsGhost && !isFollowing) ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : isFollowing ? "Following" : "Follow"}
               </button>
@@ -216,9 +231,13 @@ export default function PublicProfileClient({
           </div>
 
           <div className="flex justify-center md:justify-start gap-10">
-            <div className="flex flex-col"><span className="font-bold text-xl">{profile._count?.posts || 0}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Posts</span></div>
-            <div className="flex flex-col"><span className="font-bold text-xl">{followersCount}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Followers</span></div>
-            <div className="flex flex-col"><span className="font-bold text-xl">{subscribersCount}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Subscribers</span></div>
+            {isCreator && (
+              <>
+                <div className="flex flex-col"><span className="font-bold text-xl">{profile._count?.posts || 0}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Posts</span></div>
+                <div className="flex flex-col"><span className="font-bold text-xl">{followersCount}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Followers</span></div>
+                <div className="flex flex-col"><span className="font-bold text-xl">{subscribersCount}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Subscribers</span></div>
+              </>
+            )}
             <div className="flex flex-col"><span className="font-bold text-xl">{profile.followingCount || 0}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Following</span></div>
           </div>
 
@@ -233,7 +252,7 @@ export default function PublicProfileClient({
       {/* --- BODY SECTION --- */}
       {isCreator ? (
         <div className="space-y-6">
-          <div className="flex gap-8 border-b border-zinc-900">
+          <div className="flex gap-8 border-b border-border-theme">
             <button 
               onClick={() => setActiveTab('posts')}
               className={`pb-4 text-xs font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-all ${activeTab === 'posts' ? 'border-white text-white' : 'border-transparent text-zinc-600'}`}
@@ -255,7 +274,7 @@ export default function PublicProfileClient({
                   const unlocked = hasAccess(post);
                   const isMediaLoading = loadingMedia[post.id];
                   return (
-                    <div key={post.id} className="aspect-square bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 relative group cursor-pointer">
+                    <div key={post.id} className="aspect-square bg-zinc-900 rounded-2xl overflow-hidden border border-border-theme relative group cursor-pointer">
                       <img 
                         src={unlocked ? `/api/media/post/${post.id}?t=${refreshKey}` : "/locked-content.png"} 
                         alt="Post" 
@@ -277,7 +296,7 @@ export default function PublicProfileClient({
                           <span className="px-2.5 py-1 bg-purple-600/90 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-wider rounded-lg border border-purple-400/30 shadow-lg shadow-purple-900/40">
                             Premium
                           </span>
-                          <span className="px-2 py-1 bg-black/80 backdrop-blur-md text-purple-400 text-[9px] font-black rounded-lg border border-zinc-800 shadow-xl">
+                          <span className="px-2 py-1 bg-black/80 backdrop-blur-md text-purple-400 text-[9px] font-black rounded-lg border border-border-theme shadow-xl">
                             ${((post.price || 0) / 100).toFixed(2)}
                           </span>
                         </div>
@@ -329,7 +348,7 @@ export default function PublicProfileClient({
                   const unlocked = hasAccess(reel);
                   const isMediaLoading = loadingMedia[reel.id];
                   return (
-                    <div key={reel.id} className="aspect-[9/16] bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 relative group cursor-pointer">
+                    <div key={reel.id} className="aspect-[9/16] bg-zinc-900 rounded-2xl overflow-hidden border border-border-theme relative group cursor-pointer">
                     {unlocked ? (
                       <video 
                         src={`/api/media/reel/${reel.id}?t=${refreshKey}`} 
@@ -362,7 +381,7 @@ export default function PublicProfileClient({
                           <span className="px-3 py-1 bg-purple-600/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest rounded-xl border border-purple-400/30 shadow-lg shadow-purple-900/40">
                             Premium Reel
                           </span>
-                          <span className="px-3 py-1 bg-black/80 backdrop-blur-md text-purple-400 text-[11px] font-black rounded-xl border border-zinc-800 shadow-xl">
+                          <span className="px-3 py-1 bg-black/80 backdrop-blur-md text-purple-400 text-[11px] font-black rounded-xl border border-border-theme shadow-xl">
                             ${((reel.price || 0) / 100).toFixed(2)}
                           </span>
                         </div>
@@ -412,8 +431,8 @@ export default function PublicProfileClient({
           </div>
         </div>
       ) : (
-        <div className="w-full py-32 flex flex-col items-center justify-center border border-zinc-900 rounded-[3rem] bg-zinc-950/30">
-          <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-6 border border-zinc-800">
+        <div className="w-full py-32 flex flex-col items-center justify-center border border-border-theme rounded-[3rem] bg-zinc-950/30">
+          <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-6 border border-border-theme">
              <Grid size={24} className="text-zinc-700" />
           </div>
           <h2 className="text-2xl font-black uppercase italic tracking-tighter text-zinc-500">
@@ -428,7 +447,7 @@ export default function PublicProfileClient({
       {/* Unfollow Confirmation Modal */}
       {showUnfollowModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900/90 border border-zinc-800 p-8 rounded-[2rem] max-w-sm w-full text-center shadow-2xl backdrop-blur-md">
+          <div className="bg-zinc-900/90 border border-border-theme p-8 rounded-[2rem] max-w-sm w-full text-center shadow-2xl backdrop-blur-md">
             <h3 className="text-2xl font-black uppercase italic tracking-tighter mb-2 text-white">Unfollow?</h3>
             <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-8">
               Stop seeing posts from @{profile.username}?
@@ -459,7 +478,7 @@ export default function PublicProfileClient({
                     initial={{ scale: 0.9, opacity: 0, y: 30 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.9, opacity: 0, y: 30 }}
-                    className="bg-black border border-zinc-900 rounded-[3rem] p-10 w-full max-w-2xl shadow-2xl relative overflow-hidden"
+                    className="bg-black border border-border-theme rounded-[3rem] p-10 w-full max-w-2xl shadow-2xl relative overflow-hidden"
                 >
                     <div className="absolute top-0 right-0 p-12 opacity-5 text-purple-600 pointer-events-none">
                         <Star size={300} />
@@ -512,7 +531,7 @@ export default function PublicProfileClient({
                         />
                     </div>
 
-                    <div className="mt-8 flex items-center justify-center gap-3 p-4 bg-zinc-950 rounded-2xl border border-zinc-900">
+                    <div className="mt-8 flex items-center justify-center gap-3 p-4 bg-zinc-950 rounded-2xl border border-border-theme">
                         <Wallet size={16} className="text-emerald-500" />
                         <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">
                             Your Wallet Balance: <span className="text-white">${(currentUserBalance / 100).toFixed(2)}</span>
@@ -541,7 +560,7 @@ const SubTierCard = ({ tier, title, price, icon, features, onSelect, disabled, c
     const isOwned = currentTier >= tier;
 
     return (
-        <div className={`p-6 rounded-[2rem] border transition-all flex flex-col h-full ${highlight ? 'bg-purple-600/5 border-purple-500 shadow-xl shadow-purple-900/40' : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'}`}>
+        <div className={`p-6 rounded-[2rem] border transition-all flex flex-col h-full ${highlight ? 'bg-purple-600/5 border-purple-500 shadow-xl shadow-purple-900/40' : 'bg-zinc-900/50 border-border-theme hover:border-border-theme'}`}>
             <div className="flex justify-between items-start mb-6">
                 <div className="p-3 bg-black rounded-2xl">{icon}</div>
                 {highlight && <span className="text-[8px] font-black uppercase tracking-widest bg-purple-600 text-white px-2 py-1 rounded-full">Popular</span>}
@@ -577,7 +596,7 @@ const SubTierCard = ({ tier, title, price, icon, features, onSelect, disabled, c
 
 
 const EmptyState = ({ icon, label }: { icon: React.ReactNode, label: string }) => (
-  <div className="col-span-full py-20 flex flex-col items-center justify-center bg-zinc-950/30 border border-zinc-900 border-dashed rounded-[2rem]">
+  <div className="col-span-full py-20 flex flex-col items-center justify-center bg-zinc-950/30 border border-border-theme border-dashed rounded-[2rem]">
     <div className="text-zinc-800 mb-4">{icon}</div>
     <p className="text-zinc-600 font-black uppercase tracking-widest text-[10px]">{label}</p>
   </div>

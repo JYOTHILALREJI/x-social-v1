@@ -5,7 +5,7 @@ import {
   TrendingUp, Users, DollarSign, Calendar, Filter, 
   Eye, EyeOff, MoreHorizontal, ArrowUpRight, ArrowDownRight,
   BarChart3, LayoutDashboard, Settings as SettingsIcon,
-  ChevronDown, Download, Share2, Wallet, Crown
+  ChevronDown, Download, Share2, Wallet, Crown, Loader2
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -21,6 +21,7 @@ import {
 import { Line } from 'react-chartjs-2';
 import Image from 'next/image';
 import Link from 'next/link';
+import { toggleContentVisibility } from '@/app/actions/user-actions';
 
 ChartJS.register(
   CategoryScale,
@@ -59,9 +60,10 @@ interface CreatorDashboardProps {
     } | null;
   };
   platformFee?: number;
+  onToggleVisibility?: (id: string, type: 'post' | 'reel', isPrivate: boolean) => void;
 }
 
-const CreatorDashboard = ({ user, platformFee = 20 }: CreatorDashboardProps) => {
+const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: CreatorDashboardProps) => {
   const [timeFilter, setTimeFilter] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [mounted, setMounted] = useState(false);
 
@@ -199,7 +201,7 @@ const CreatorDashboard = ({ user, platformFee = 20 }: CreatorDashboardProps) => 
         <div className="flex items-center gap-3">
             <Link 
               href="/settings"
-              className="p-3 bg-zinc-900 hover:bg-zinc-800 rounded-2xl border border-zinc-800 transition-all group"
+              className="p-3 bg-zinc-900 hover:bg-zinc-800 rounded-2xl border border-border-theme transition-all group"
             >
               <SettingsIcon size={20} className="text-zinc-400 group-hover:rotate-90 transition-transform duration-500" />
             </Link>
@@ -249,7 +251,7 @@ const CreatorDashboard = ({ user, platformFee = 20 }: CreatorDashboardProps) => 
       </div>
 
       {/* Graph Section */}
-      <div className="bg-zinc-950 border border-zinc-900 rounded-[2.5rem] p-8 space-y-8">
+      <div className="bg-zinc-950 border border-border-theme rounded-[2.5rem] p-8 space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-4">
              <div className="p-3 bg-purple-500/10 rounded-2xl border border-purple-500/20">
@@ -261,7 +263,7 @@ const CreatorDashboard = ({ user, platformFee = 20 }: CreatorDashboardProps) => 
              </div>
           </div>
           
-          <div className="flex items-center bg-zinc-900/50 p-1.5 rounded-2xl border border-zinc-800">
+          <div className="flex items-center bg-zinc-900/50 p-1.5 rounded-2xl border border-border-theme">
             {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => (
               <button
                 key={period}
@@ -283,7 +285,7 @@ const CreatorDashboard = ({ user, platformFee = 20 }: CreatorDashboardProps) => 
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-               <div className="p-3 bg-zinc-900 rounded-2xl border border-zinc-800">
+               <div className="p-3 bg-zinc-900 rounded-2xl border border-border-theme">
                   <LayoutDashboard size={20} className="text-zinc-400" />
                </div>
                <div>
@@ -298,26 +300,26 @@ const CreatorDashboard = ({ user, platformFee = 20 }: CreatorDashboardProps) => 
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Posts List */}
-          <div className="bg-zinc-950 border border-zinc-900 rounded-[2.5rem] p-6 space-y-6">
+          <div className="bg-zinc-950 border border-border-theme rounded-[2.5rem] p-6 space-y-6">
               <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" /> Recent Posts
               </h4>
               <div className="space-y-4">
                 {user.posts.slice(0, 3).map((post) => (
-                  <ContentItem key={post.id} item={post} type="post" />
+                  <ContentItem key={post.id} item={post} type="post" userId={user.id} onToggle={onToggleVisibility} />
                 ))}
                 {user.posts.length === 0 && <p className="text-zinc-600 text-xs italic">No posts found.</p>}
               </div>
           </div>
 
           {/* Recent Reels List */}
-          <div className="bg-zinc-950 border border-zinc-900 rounded-[2.5rem] p-6 space-y-6">
+          <div className="bg-zinc-950 border border-border-theme rounded-[2.5rem] p-6 space-y-6">
               <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> Recent Reels
               </h4>
               <div className="space-y-4">
                 {user.reels.slice(0, 3).map((reel) => (
-                  <ContentItem key={reel.id} item={reel} type="reel" />
+                  <ContentItem key={reel.id} item={reel} type="reel" userId={user.id} onToggle={onToggleVisibility} />
                 ))}
                 {user.reels.length === 0 && <p className="text-zinc-600 text-xs italic">No reels found.</p>}
               </div>
@@ -330,7 +332,7 @@ const CreatorDashboard = ({ user, platformFee = 20 }: CreatorDashboardProps) => 
 
 // Sub-components
 const StatCard = ({ title, value, trend, trendUp, icon }: any) => (
-  <div className="bg-zinc-950 border border-zinc-900 p-8 rounded-[2.5rem] hover:border-zinc-700 transition-all group overflow-hidden relative">
+  <div className="bg-zinc-950 border border-border-theme p-8 rounded-[2.5rem] hover:border-border-theme transition-all group overflow-hidden relative">
     <div className="absolute -right-4 -top-4 w-24 h-24 bg-zinc-900/10 rounded-full group-hover:scale-150 transition-transform duration-700" />
     <div className="flex justify-between items-start mb-6">
       <div className="p-3 bg-zinc-900 rounded-2xl group-hover:scale-110 transition-transform">{icon}</div>
@@ -346,13 +348,32 @@ const StatCard = ({ title, value, trend, trendUp, icon }: any) => (
   </div>
 );
 
-const ContentItem = ({ item, type }: { item: any; type: 'post' | 'reel' }) => {
-  const [isVisible, setIsVisible] = useState(true);
+const ContentItem = ({ item, type, userId, onToggle }: { item: any; type: 'post' | 'reel'; userId: string; onToggle?: any }) => {
+  const [isVisible, setIsVisible] = useState(!item.isPrivate);
+  const [loading, setLoading] = useState(false);
+
+  // Sync state if props change (e.g. after refresh or manual state update)
+  React.useEffect(() => {
+    setIsVisible(!item.isPrivate);
+  }, [item.isPrivate]);
+
+  const handleToggle = async () => {
+    setLoading(true);
+    const newPrivateStatus = isVisible; // we want to set it to private if it's currently visible
+    const res = await toggleContentVisibility(userId, item.id, type, newPrivateStatus);
+    if (res.success) {
+      setIsVisible(!newPrivateStatus);
+      if (onToggle) onToggle(item.id, type, newPrivateStatus);
+    } else {
+      alert(res.error || "Failed to update visibility");
+    }
+    setLoading(false);
+  };
 
   return (
-    <div className="flex items-center justify-between p-4 bg-zinc-900/30 rounded-3xl border border-zinc-900 hover:border-zinc-800 transition-all group">
+    <div className="flex items-center justify-between p-4 bg-zinc-900/30 rounded-3xl border border-border-theme hover:border-border-theme transition-all group">
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 relative rounded-xl overflow-hidden border border-zinc-800">
+        <div className={`w-12 h-12 relative rounded-xl overflow-hidden border border-border-theme ${!isVisible ? 'opacity-40 grayscale-[0.5]' : ''}`}>
            {type === 'post' ? (
              <Image src={`/api/media/post/${item.id}`} alt="content" fill className="object-cover" unoptimized />
            ) : (
@@ -360,7 +381,10 @@ const ContentItem = ({ item, type }: { item: any; type: 'post' | 'reel' }) => {
            )}
         </div>
         <div>
-          <p className="text-xs font-black uppercase tracking-tight line-clamp-1">{item.caption || "Untiled Content"}</p>
+          <p className="text-xs font-black uppercase tracking-tight line-clamp-1 flex items-center gap-2">
+            {item.caption || "Untiled Content"}
+            {!isVisible && <span className="bg-zinc-800 text-[8px] px-1.5 py-0.5 rounded text-zinc-500">Hidden</span>}
+          </p>
           <div className="flex items-center gap-3 mt-1">
              <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest" suppressHydrationWarning>
                {new Date(item.createdAt).toLocaleDateString()}
@@ -372,12 +396,13 @@ const ContentItem = ({ item, type }: { item: any; type: 'post' | 'reel' }) => {
       
       <div className="flex items-center gap-2">
          <button 
-           onClick={() => setIsVisible(!isVisible)}
-           className={`p-2 rounded-xl border transition-all ${isVisible ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-zinc-800 border-zinc-700 text-zinc-500'}`}
+           disabled={loading}
+           onClick={handleToggle}
+           className={`p-2 rounded-xl border transition-all ${isVisible ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-zinc-800 border-border-theme text-zinc-500'} ${loading ? 'opacity-50' : ''}`}
          >
-           {isVisible ? <Eye size={16} /> : <EyeOff size={16} />}
+           {loading ? <Loader2 size={16} className="animate-spin" /> : isVisible ? <Eye size={16} /> : <EyeOff size={16} />}
          </button>
-         <button className="p-2 bg-zinc-800 border border-zinc-700 text-zinc-400 rounded-xl hover:bg-zinc-700 transition-all">
+         <button className="p-2 bg-zinc-800 border border-border-theme text-zinc-400 rounded-xl hover:bg-zinc-700 transition-all">
            <MoreHorizontal size={16} />
          </button>
       </div>

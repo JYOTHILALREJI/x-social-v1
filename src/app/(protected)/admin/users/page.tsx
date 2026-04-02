@@ -73,7 +73,7 @@ export default function UserManagementPage() {
 
   return (
     <div className="space-y-8 pb-12 relative">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-950 p-8 rounded-3xl border border-zinc-900 shadow-2xl overflow-hidden relative">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-950 p-8 rounded-3xl border border-border-theme shadow-2xl overflow-hidden relative">
         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
             <Users size={200} />
         </div>
@@ -98,7 +98,7 @@ export default function UserManagementPage() {
                     placeholder="Search users..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-12 pr-6 py-3.5 bg-black border border-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all w-full md:w-64 backdrop-blur-xl"
+                    className="pl-12 pr-6 py-3.5 bg-black border border-border-theme rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all w-full md:w-64 backdrop-blur-xl"
                 />
             </div>
         </div>
@@ -112,7 +112,7 @@ export default function UserManagementPage() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-zinc-950 border border-zinc-900 rounded-3xl p-10 w-full max-w-lg shadow-2xl relative overflow-hidden"
+              className="bg-zinc-950 border border-border-theme rounded-3xl p-10 w-full max-w-lg shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 p-8 opacity-5">
                 <PlusCircle size={150} />
@@ -129,7 +129,7 @@ export default function UserManagementPage() {
                     value={newUser.username}
                     onChange={(e) => setNewUser({...newUser, username: e.target.value})}
                     placeholder="john_doe"
-                    className="w-full px-6 py-4 bg-black border border-zinc-800 rounded-2xl focus:outline-none focus:border-purple-500 transition-all"
+                    className="w-full px-6 py-4 bg-black border border-border-theme rounded-2xl focus:outline-none focus:border-purple-500 transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -140,7 +140,7 @@ export default function UserManagementPage() {
                     value={newUser.email}
                     onChange={(e) => setNewUser({...newUser, email: e.target.value})}
                     placeholder="john@example.com"
-                    className="w-full px-6 py-4 bg-black border border-zinc-800 rounded-2xl focus:outline-none focus:border-purple-500 transition-all"
+                    className="w-full px-6 py-4 bg-black border border-border-theme rounded-2xl focus:outline-none focus:border-purple-500 transition-all"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -151,7 +151,7 @@ export default function UserManagementPage() {
                       required
                       value={newUser.password}
                       onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                      className="w-full px-6 py-4 bg-black border border-zinc-800 rounded-2xl focus:outline-none focus:border-purple-500 transition-all"
+                      className="w-full px-6 py-4 bg-black border border-border-theme rounded-2xl focus:outline-none focus:border-purple-500 transition-all"
                     />
                   </div>
                   <div className="space-y-2">
@@ -159,7 +159,7 @@ export default function UserManagementPage() {
                     <select 
                       value={newUser.role}
                       onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                      className="w-full px-6 py-4 bg-black border border-zinc-800 rounded-2xl focus:outline-none focus:border-purple-500 transition-all appearance-none"
+                      className="w-full px-6 py-4 bg-black border border-border-theme rounded-2xl focus:outline-none focus:border-purple-500 transition-all appearance-none"
                     >
                       <option value="USER">User</option>
                       <option value="CREATOR">Creator</option>
@@ -191,11 +191,11 @@ export default function UserManagementPage() {
 
 
       {/* Users Table */}
-      <div className="bg-zinc-950 border border-zinc-900 rounded-3xl overflow-hidden shadow-2xl">
+      <div className="bg-zinc-950 border border-border-theme rounded-3xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-zinc-900 text-zinc-500 text-xs font-black uppercase tracking-widest bg-zinc-900/10">
+              <tr className="border-b border-border-theme text-zinc-500 text-xs font-black uppercase tracking-widest bg-zinc-900/10">
                 <th className="py-6 px-8">User Info</th>
                 <th className="py-6 px-8">Status / Role</th>
                 <th className="py-6 px-8">Wallet Balance</th>
@@ -228,7 +228,7 @@ export default function UserManagementPage() {
                           {user.username[0].toUpperCase()}
                         </div>
                         {user.role === "ADMIN" && (
-                            <div className="absolute -top-1 -right-1 bg-red-500 text-[10px] p-1 rounded-full border-2 border-zinc-950 shadow-xl">
+                            <div className="absolute -top-1 -right-1 bg-red-500 text-[10px] p-1 rounded-full border-2 border-border-theme shadow-xl">
                                 <ShieldCheck size={12} className="text-white" />
                             </div>
                         )}
@@ -260,7 +260,7 @@ export default function UserManagementPage() {
                     </td>
                     <td className="py-6 px-8 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Link href={`/admin/users/${user.id}`} className="p-2.5 bg-zinc-900 rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all border border-zinc-800">
+                        <Link href={`/admin/users/${user.id}`} className="p-2.5 bg-zinc-900 rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all border border-border-theme">
                           <Eye size={18} />
                         </Link>
                         <button 
@@ -280,7 +280,7 @@ export default function UserManagementPage() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between p-8 border-t border-zinc-900 bg-zinc-900/10">
+        <div className="flex items-center justify-between p-8 border-t border-border-theme bg-zinc-900/10">
           <p className="text-zinc-500 text-sm font-medium">
             Showing <span className="text-white">{(page - 1) * 10 + 1}</span> to <span className="text-white">{Math.min(page * 10, total)}</span> of <span className="text-white">{total}</span> users
           </p>

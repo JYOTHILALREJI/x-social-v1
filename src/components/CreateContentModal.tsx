@@ -78,7 +78,7 @@ export default function CreateContentModal({ isOpen, onClose, type, authorId }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-0 md:p-6 lg:p-12 overflow-hidden">
-      <div className="bg-zinc-950 border border-zinc-900 rounded-none md:rounded-[3rem] w-full max-w-5xl h-full md:h-auto md:max-h-[90vh] shadow-2xl relative flex flex-col md:flex-row overflow-hidden">
+      <div className="bg-zinc-950 border border-border-theme rounded-none md:rounded-[3rem] w-full max-w-5xl h-full md:h-auto md:max-h-[90vh] shadow-2xl relative flex flex-col md:flex-row overflow-hidden">
         <button 
           onClick={onClose}
           className="absolute top-6 right-6 z-20 text-zinc-600 hover:text-white transition-colors bg-black/40 backdrop-blur-md p-2 rounded-full"
@@ -87,22 +87,22 @@ export default function CreateContentModal({ isOpen, onClose, type, authorId }: 
         </button>
 
         {/* Left Side: Preview Area */}
-        <div className="flex-1 bg-zinc-900/50 flex flex-col items-center justify-center p-4 md:p-0 relative min-h-[300px] md:min-h-0 border-b md:border-b-0 md:border-r border-zinc-900">
+        <div className="flex-1 bg-zinc-900/50 flex flex-col items-center justify-center p-4 md:p-0 relative min-h-[300px] md:min-h-0 border-b md:border-b-0 md:border-r border-border-theme">
            {!preview ? (
              <div 
                onClick={() => document.getElementById('file-upload')?.click()}
                className="w-full h-full flex flex-col items-center justify-center p-12 hover:bg-purple-500/5 transition-all cursor-pointer group"
              >
-               <div className="w-24 h-24 rounded-full bg-zinc-950 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-2xl border border-zinc-900">
+               <div className="w-24 h-24 rounded-full bg-zinc-950 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-2xl border border-border-theme">
                   {type === 'posts' ? <ImageIcon size={32} className="text-zinc-500 group-hover:text-purple-400 transition-colors" /> : <Video size={32} className="text-zinc-500 group-hover:text-purple-400 transition-colors" />}
                </div>
                <h3 className="text-xl font-black italic uppercase tracking-tighter text-white mb-2">Drop your media here</h3>
                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-purple-400">Click to browse your device</p>
                <div className="mt-8 flex gap-4">
-                  <div className="px-4 py-2 bg-zinc-950 rounded-xl border border-zinc-800 text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
+                  <div className="px-4 py-2 bg-zinc-950 rounded-xl border border-border-theme text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
                     MAX 50MB
                   </div>
-                  <div className="px-4 py-2 bg-zinc-950 rounded-xl border border-zinc-800 text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
+                  <div className="px-4 py-2 bg-zinc-950 rounded-xl border border-border-theme text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
                     {type === 'posts' ? 'JPG, PNG, WEBP' : 'MP4, MOV'}
                   </div>
                </div>
@@ -168,7 +168,7 @@ export default function CreateContentModal({ isOpen, onClose, type, authorId }: 
                  value={caption}
                  onChange={(e) => setCaption(e.target.value)}
                  placeholder="What's on your mind? #vibrant #creator"
-                 className="w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-6 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all font-medium text-sm placeholder:text-zinc-600 resize-none h-40"
+                 className="w-full bg-zinc-900 border border-border-theme rounded-3xl p-6 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all font-medium text-sm placeholder:text-zinc-600 resize-none h-40"
                />
             </div>
 

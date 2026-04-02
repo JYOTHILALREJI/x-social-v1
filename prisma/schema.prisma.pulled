@@ -1,0 +1,234 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  username         String           @unique
+  password         String
+  dob              DateTime
+  role             Role             @default(USER)
+  walletBalance    Int              @default(0)
+  image            String?
+  bio              String?
+  gender           String?
+  interestedIn     String?
+  createdAt        DateTime         @default(now())
+  creatorStatus    CreatorStatus    @default(NONE)
+  idProofUrl       String?
+  verifiedAt       DateTime?
+  followersCount   Int              @default(0)
+  followingCount   Int              @default(0)
+  name             String?
+  subscribersCount Int              @default(0)
+  isGhost          Boolean          @default(false)
+  aiConversations  AIConversation[]
+  creatorProfile   CreatorProfile?
+  follows          Follow[]         @relation("follower")
+  followers        Follow[]         @relation("following")
+  receivedMatches  Match[]          @relation("ReceivedMatches")
+  sentMatches      Match[]          @relation("SentMatches")
+  posts            Post[]
+  comments         PostComment[]
+  likedPosts       PostLike[]
+  purchases        Purchase[]
+  reels            Reel[]
+  revenues         Revenue[]        @relation("CreatorRevenue")
+  spendings        Revenue[]        @relation("UserSpendings")
+  sessions         Session[]
+  interests        UserInterest[]
+}
+
+model Follow {
+  followerId       String
+  followingId      String
+  expiresAt        DateTime?
+  subscriptionTier Int       @default(0)
+  follower         User      @relation("follower", fields: [followerId], references: [id])
+  following        User      @relation("following", fields: [followingId], references: [id])
+
+  @@id([followerId, followingId])
+}
+
+model CreatorProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  categories String[]
+  idProofUrl String
+  selfieUrl  String
+  status     Status   @default(PENDING)
+  createdAt  DateTime @default(now())
+  tier1Price Int      @default(0)
+  tier2Price Int      @default(0)
+  tier3Price Int      @default(0)
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model Revenue {
+  id        String   @id @default(cuid())
+  creatorId String
+  amount    Int
+  type      String
+  createdAt DateTime @default(now())
+  postId    String?
+  reelId    String?
+  senderId  String?
+  creator   User     @relation("CreatorRevenue", fields: [creatorId], references: [id])
+  sender    User?    @relation("UserSpendings", fields: [senderId], references: [id])
+
+  @@index([creatorId])
+  @@index([senderId])
+}
+
+model Match {
+  id         String      @id @default(cuid())
+  senderId   String
+  receiverId String
+  status     MatchStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  receiver   User        @relation("ReceivedMatches", fields: [receiverId], references: [id])
+  sender     User        @relation("SentMatches", fields: [senderId], references: [id])
+
+  @@unique([senderId, receiverId])
+}
+
+model AIConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  persona   String
+  messages  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Interest {
+  id    String         @id @default(cuid())
+  name  String         @unique
+  users UserInterest[]
+}
+
+model UserInterest {
+  userId     String
+  interestId String
+  interest   Interest @relation(fields: [interestId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@id([userId, interestId])
+}
+
+model Post {
+  id        String        @id @default(cuid())
+  imageUrl  String
+  caption   String?
+  isPremium Boolean       @default(false)
+  price     Int?
+  authorId  String
+  createdAt DateTime      @default(now())
+  isPrivate Boolean       @default(false)
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments  PostComment[] @relation("PostComments")
+  likes     PostLike[]    @relation("PostLikes")
+  purchases Purchase[]
+
+  @@index([authorId])
+}
+
+model Reel {
+  id        String     @id @default(cuid())
+  videoUrl  String
+  caption   String?
+  authorId  String
+  createdAt DateTime   @default(now())
+  isPremium Boolean    @default(false)
+  price     Int?
+  isPrivate Boolean    @default(false)
+  purchases Purchase[]
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([authorId])
+}
+
+model Purchase {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String?
+  reelId    String?
+  createdAt DateTime @default(now())
+  post      Post?    @relation(fields: [postId], references: [id])
+  reel      Reel?    @relation(fields: [reelId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@unique([userId, reelId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model SystemSettings {
+  id          String   @id @default("default")
+  platformFee Int      @default(20)
+  updatedAt   DateTime @updatedAt
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation("PostLikes", fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  text      String
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation("PostComments", fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+enum Role {
+  USER
+  CREATOR
+  ADMIN
+}
+
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CreatorStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MatchStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}

@@ -10,7 +10,10 @@ const createPrismaClient = () => {
   });
   const adapter = new PrismaPg(pool as any);
   
-  return new PrismaClient({ adapter });
+  return new PrismaClient({ 
+    adapter,
+    // Add datasource for Prisma 7 if needed, but usually config handles it.
+  });
 };
 
 export const prisma = globalForPrisma.prisma || createPrismaClient();

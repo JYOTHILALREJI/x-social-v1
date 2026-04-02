@@ -129,7 +129,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="p-8 bg-zinc-950 border border-zinc-900 rounded-[2.5rem] shadow-2xl relative overflow-hidden group"
+            className="p-8 bg-zinc-950 border border-border-theme rounded-[2.5rem] shadow-2xl relative overflow-hidden group"
           >
             <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none text-purple-500">
                 <User size={200} />
@@ -152,13 +152,13 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                           'bg-blue-500/10 text-blue-500 border-blue-500/20'}`}>
                         {userData.role}
                     </span>
-                    <span className="px-4 py-1.5 rounded-full bg-zinc-900 text-zinc-400 border border-zinc-800 text-[10px] font-black uppercase tracking-widest">
+                    <span className="px-4 py-1.5 rounded-full bg-zinc-900 text-zinc-400 border border-border-theme text-[10px] font-black uppercase tracking-widest">
                         ID: {userData.id.substring(0, 8)}...
                     </span>
                 </div>
             </div>
 
-            <div className="mt-10 pt-10 border-t border-zinc-900 space-y-6">
+            <div className="mt-10 pt-10 border-t border-border-theme space-y-6">
                 <div className="flex items-center justify-between text-zinc-400">
                     <span className="text-[10px] font-black uppercase tracking-widest">User Balance</span>
                     <div className="flex items-center gap-1.5 text-white font-black text-xl">
@@ -180,19 +180,19 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
 
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-2 gap-4">
-             <div className="p-6 bg-zinc-900/30 border border-zinc-900 rounded-3xl text-center">
+             <div className="p-6 bg-zinc-900/30 border border-border-theme rounded-3xl text-center">
                 <p className="text-[10px] font-black uppercase text-zinc-500 mb-2">Followers</p>
                 <p className="text-2xl font-black">{userData.followersCount || 0}</p>
              </div>
-             <div className="p-6 bg-zinc-900/30 border border-zinc-900 rounded-3xl text-center">
+             <div className="p-6 bg-zinc-900/30 border border-border-theme rounded-3xl text-center">
                 <p className="text-[10px] font-black uppercase text-zinc-500 mb-2">Subscribers</p>
                 <p className="text-2xl font-black">{userData.subscribersCount || 0}</p>
              </div>
-             <div className="p-6 bg-zinc-900/30 border border-zinc-900 rounded-3xl text-center">
+             <div className="p-6 bg-zinc-900/30 border border-border-theme rounded-3xl text-center">
                 <p className="text-[10px] font-black uppercase text-zinc-500 mb-2">Following</p>
                 <p className="text-2xl font-black">{userData.followingCount || 0}</p>
              </div>
-             <div className="p-6 bg-zinc-900/30 border border-zinc-900 rounded-3xl text-center">
+             <div className="p-6 bg-zinc-900/30 border border-border-theme rounded-3xl text-center">
                 <p className="text-[10px] font-black uppercase text-zinc-500 mb-2">Content</p>
                 <p className="text-2xl font-black">{(userData._count.posts || 0) + (userData._count.reels || 0)}</p>
              </div>
@@ -203,7 +203,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
         <div className="lg:col-span-2 space-y-10">
           
           {/* Action Center Tabs */}
-          <div className="bg-zinc-950 border border-zinc-900 rounded-[2.5rem] p-10 shadow-2xl">
+          <div className="bg-zinc-950 border border-border-theme rounded-[2.5rem] p-10 shadow-2xl">
              <div className="flex items-center justify-between mb-10">
                 <h3 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3">
                    <Settings size={22} className="text-purple-500" />
@@ -212,7 +212,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                 <div className="flex gap-2">
                     <button 
                         onClick={() => setIsEditing(!isEditing)}
-                        className={`p-3 rounded-2xl border transition-all ${isEditing ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'}`}
+                        className={`p-3 rounded-2xl border transition-all ${isEditing ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-900 border-border-theme text-zinc-400 hover:text-white'}`}
                     >
                         {isEditing ? <X size={20} /> : <Edit2 size={20} />}
                     </button>
@@ -241,7 +241,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                                     type="text" 
                                     value={editForm.username}
                                     onChange={(e) => setEditForm({...editForm, username: e.target.value})}
-                                    className="w-full px-6 py-4 bg-black border border-zinc-800 rounded-2xl focus:outline-none focus:border-purple-500 transition-all font-bold"
+                                    className="w-full px-6 py-4 bg-black border border-border-theme rounded-2xl focus:outline-none focus:border-purple-500 transition-all font-bold"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -250,7 +250,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                                     type="email" 
                                     value={editForm.email}
                                     onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                                    className="w-full px-6 py-4 bg-black border border-zinc-800 rounded-2xl focus:outline-none focus:border-purple-500 transition-all font-bold"
+                                    className="w-full px-6 py-4 bg-black border border-border-theme rounded-2xl focus:outline-none focus:border-purple-500 transition-all font-bold"
                                 />
                             </div>
                         </div>
@@ -259,7 +259,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                             <select 
                                 value={editForm.role}
                                 onChange={(e) => setEditForm({...editForm, role: e.target.value})}
-                                className="w-full px-6 py-4 bg-black border border-zinc-800 rounded-2xl focus:outline-none focus:border-purple-500 transition-all font-bold appearance-none"
+                                className="w-full px-6 py-4 bg-black border border-border-theme rounded-2xl focus:outline-none focus:border-purple-500 transition-all font-bold appearance-none"
                             >
                                 <option value="USER">Standard User</option>
                                 <option value="CREATOR">Verified Creator</option>
@@ -283,7 +283,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                         className="grid grid-cols-1 md:grid-cols-2 gap-10"
                     >
                         {/* Wallet Management Area */}
-                        <div className="p-8 bg-zinc-900 border border-zinc-800 rounded-3xl space-y-6">
+                        <div className="p-8 bg-zinc-900 border border-border-theme rounded-3xl space-y-6">
                             <h4 className="font-black text-sm uppercase tracking-widest flex items-center gap-2">
                                 <Wallet size={16} className="text-emerald-500" />
                                 Balance Adjustment
@@ -294,7 +294,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                                     value={walletAmount} 
                                     onChange={(e) => setWalletAmount(Number(e.target.value))}
                                     placeholder="Enter amount..."
-                                    className="flex-1 bg-black border border-zinc-800 px-6 py-4 rounded-2xl focus:outline-none focus:border-emerald-500 transition-all font-black"
+                                    className="flex-1 bg-black border border-border-theme px-6 py-4 rounded-2xl focus:outline-none focus:border-emerald-500 transition-all font-black"
                                 />
                             </div>
                             <div className="flex gap-4">
@@ -322,21 +322,21 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                                 Account Pulse
                             </h4>
                             <div className="space-y-3">
-                                <div className="p-4 rounded-2xl bg-black border border-zinc-900 flex items-center justify-between group hover:border-zinc-800 transition-all">
+                                <div className="p-4 rounded-2xl bg-black border border-border-theme flex items-center justify-between group hover:border-border-theme transition-all">
                                     <div className="flex items-center gap-3">
                                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                         <p className="text-sm font-bold">Posts Published</p>
                                     </div>
                                     <span className="text-zinc-500 font-mono text-xs font-bold">{userData._count.posts}</span>
                                 </div>
-                                <div className="p-4 rounded-2xl bg-black border border-zinc-900 flex items-center justify-between group hover:border-zinc-800 transition-all">
+                                <div className="p-4 rounded-2xl bg-black border border-border-theme flex items-center justify-between group hover:border-border-theme transition-all">
                                     <div className="flex items-center gap-3">
                                         <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
                                         <p className="text-sm font-bold">Reels Created</p>
                                     </div>
                                     <span className="text-zinc-500 font-mono text-xs font-bold">{userData._count.reels}</span>
                                 </div>
-                                <div className="p-4 rounded-2xl bg-black border border-zinc-900 flex items-center justify-between group hover:border-zinc-800 transition-all">
+                                <div className="p-4 rounded-2xl bg-black border border-border-theme flex items-center justify-between group hover:border-border-theme transition-all">
                                     <div className="flex items-center gap-3">
                                         <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                                         <p className="text-sm font-bold">Transactions</p>
@@ -359,7 +359,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
 
              <div className="space-y-4">
                 {userData.purchases.length === 0 && userData.posts.length === 0 && (
-                    <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-zinc-900 rounded-[2.5rem] text-zinc-600 bg-zinc-950/20">
+                    <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-border-theme rounded-[2.5rem] text-zinc-600 bg-zinc-950/20">
                         <Clock size={48} className="mb-4 opacity-20" />
                         <p className="font-bold tracking-widest uppercase text-xs">No Recent Activity Detected</p>
                     </div>
@@ -368,7 +368,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                 {/* Combined Activity Feed */}
                 <div className="grid gap-4">
                     {userData.posts.map((post: any) => (
-                        <div key={post.id} className="p-6 bg-zinc-950 border border-zinc-900 rounded-3xl flex items-center justify-between group hover:border-purple-500/30 transition-all shadow-xl">
+                        <div key={post.id} className="p-6 bg-zinc-950 border border-border-theme rounded-3xl flex items-center justify-between group hover:border-purple-500/30 transition-all shadow-xl">
                             <div className="flex items-center gap-6">
                                 <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500">
                                     <ImageIcon size={24} />
@@ -391,7 +391,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                     ))}
 
                     {userData.purchases.map((purchase: any) => (
-                        <div key={purchase.id} className="p-6 bg-zinc-950 border border-zinc-900 rounded-3xl flex items-center justify-between group hover:border-emerald-500/30 transition-all shadow-xl">
+                        <div key={purchase.id} className="p-6 bg-zinc-950 border border-border-theme rounded-3xl flex items-center justify-between group hover:border-emerald-500/30 transition-all shadow-xl">
                             <div className="flex items-center gap-6">
                                 <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                                     <CheckCircle size={24} />
@@ -414,7 +414,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      <div className="pt-20 border-t border-zinc-900 space-y-20">
+      <div className="pt-20 border-t border-border-theme space-y-20">
          {userData.revenues?.length > 0 && (
             <div className="space-y-8">
                 <div className="flex items-center justify-between">
@@ -422,13 +422,13 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                         <TrendingUp size={28} className="text-emerald-500" />
                         Revenue Stream (Earnings)
                     </h3>
-                    <span className="text-[10px] font-black uppercase text-zinc-500 bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800">
+                    <span className="text-[10px] font-black uppercase text-zinc-500 bg-zinc-900 px-4 py-2 rounded-full border border-border-theme">
                         Total Records: {userData.revenues.length}
                     </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {userData.revenues.map((rev: any) => (
-                        <div key={rev.id} className="p-6 bg-zinc-950 border border-zinc-900 rounded-3xl flex items-center justify-between group hover:border-emerald-500/30 transition-all shadow-xl">
+                        <div key={rev.id} className="p-6 bg-zinc-950 border border-border-theme rounded-3xl flex items-center justify-between group hover:border-emerald-500/30 transition-all shadow-xl">
                             <div className="flex items-center gap-6">
                                 <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 font-black text-xs">
                                     +
@@ -468,13 +468,13 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                         <DollarSign size={28} className="text-rose-500" />
                         Spending History (Outgoing)
                     </h3>
-                    <span className="text-[10px] font-black uppercase text-zinc-500 bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800">
+                    <span className="text-[10px] font-black uppercase text-zinc-500 bg-zinc-900 px-4 py-2 rounded-full border border-border-theme">
                         Total Records: {userData.spendings.length}
                     </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {userData.spendings.map((spend: any) => (
-                        <div key={spend.id} className="p-6 bg-zinc-950 border border-zinc-900 rounded-3xl flex items-center justify-between group hover:border-rose-500/30 transition-all shadow-xl">
+                        <div key={spend.id} className="p-6 bg-zinc-950 border border-border-theme rounded-3xl flex items-center justify-between group hover:border-rose-500/30 transition-all shadow-xl">
                             <div className="flex items-center gap-6">
                                 <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 font-black text-xs">
                                     -
@@ -514,7 +514,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                     initial={{ scale: 0.9, opacity: 0, y: 20 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                    className="bg-zinc-950 border border-zinc-900 rounded-[3rem] p-10 w-full max-w-md shadow-2xl relative overflow-hidden"
+                    className="bg-zinc-950 border border-border-theme rounded-[3rem] p-10 w-full max-w-md shadow-2xl relative overflow-hidden"
                 >
                     <div className="absolute top-0 right-0 p-8 opacity-5 text-emerald-500">
                         <Wallet size={120} />
@@ -524,7 +524,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                     <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-10">Verification required for financial changes.</p>
 
                     <div className="space-y-6">
-                        <div className="flex items-center justify-between p-6 bg-zinc-900/50 rounded-3xl border border-zinc-900">
+                        <div className="flex items-center justify-between p-6 bg-zinc-900/50 rounded-3xl border border-border-theme">
                             <div>
                                 <p className="text-[10px] font-black uppercase text-zinc-500 tracking-tighter mb-1">Current Balance</p>
                                 <p className="text-2xl font-black text-white">${(userData.walletBalance / 100).toFixed(2)}</p>

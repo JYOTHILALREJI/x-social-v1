@@ -15,6 +15,12 @@ interface UserSettingsProps {
   user?: {
     id: string;
     username: string;
+    name: string | null;
+    bio: string | null;
+    image: string | null;
+    dob: string | Date;
+    role: string;
+    isGhost: boolean;
     creatorStatus: string;
     creatorProfile: {
       tier1Price: number;
@@ -22,9 +28,10 @@ interface UserSettingsProps {
       tier3Price: number;
     } | null;
   };
+  onEditProfile?: () => void;
 }
 
-export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator, user }: UserSettingsProps) {
+export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator, user, onEditProfile }: UserSettingsProps) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
@@ -52,7 +59,7 @@ export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator, 
     {
       title: "Account",
       items: [
-        { icon: User, label: "Edit Profile", color: "text-blue-400", onClick: () => {} },
+        { icon: User, label: "Edit Profile", color: "text-blue-400", onClick: onEditProfile || (() => {}) },
         { icon: Lock, label: "Password & Security", color: "text-green-400", onClick: () => {} },
         { icon: ShieldCheck, label: "Privacy", color: "text-purple-400", onClick: () => {} },
       ]
@@ -94,12 +101,12 @@ export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator, 
           <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] ml-4">
             {section.title}
           </h2>
-          <div className="bg-zinc-900/20 border border-zinc-800/50 rounded-[2.5rem] overflow-hidden backdrop-blur-md">
+          <div className="bg-zinc-900/20 border border-border-theme rounded-[2.5rem] overflow-hidden backdrop-blur-md">
             {section.items.map((item, i) => (
               <button 
                 key={i} 
                 onClick={item.onClick}
-                className="w-full flex items-center justify-between p-6 hover:bg-zinc-800/30 border-b border-zinc-800/50 last:border-0 group transition-all"
+                className="w-full flex items-center justify-between p-6 hover:bg-zinc-800/30 border-b border-border-theme last:border-0 group transition-all"
               >
                 <div className="flex items-center gap-5">
                   <div className={`p-3 rounded-2xl bg-zinc-900/50 ${item.color.replace('text', 'bg').replace('400', '400/10').replace('500', '500/10')}`}>
@@ -211,7 +218,7 @@ export default function UserSettings({ onBecomeCreatorClick, showBecomeCreator, 
 
       {showLogoutModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-zinc-950 border border-zinc-800 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl">
+          <div className="bg-zinc-950 border border-border-theme w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl">
             <div className="flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
                 <AlertCircle className="text-red-500" size={32} />

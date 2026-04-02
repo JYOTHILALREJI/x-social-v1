@@ -89,7 +89,7 @@ export default function AdminDashboardPage() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
-          className="lg:col-span-2 p-8 rounded-3xl bg-zinc-950 border border-zinc-900 shadow-xl"
+          className="lg:col-span-2 p-8 rounded-3xl bg-zinc-950 border border-border-theme shadow-xl"
         >
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-bold flex items-center gap-3">
@@ -104,7 +104,7 @@ export default function AdminDashboardPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="text-zinc-500 border-b border-zinc-900">
+                <tr className="text-zinc-500 border-b border-border-theme">
                   <th className="pb-4 font-semibold uppercase tracking-wider text-xs">User</th>
                   <th className="pb-4 font-semibold uppercase tracking-wider text-xs">Role</th>
                   <th className="pb-4 font-semibold uppercase tracking-wider text-xs">Email</th>
@@ -148,7 +148,7 @@ export default function AdminDashboardPage() {
            initial={{ opacity: 0, x: 20 }}
            animate={{ opacity: 1, x: 0 }}
            transition={{ delay: 0.4 }}
-           className="p-8 rounded-3xl bg-zinc-950 border border-zinc-900 shadow-xl space-y-6"
+           className="p-8 rounded-3xl bg-zinc-950 border border-border-theme shadow-xl space-y-6"
         >
           <h2 className="text-2xl font-bold flex items-center gap-3">
             <TrendingUp className="text-emerald-500" />
@@ -157,26 +157,26 @@ export default function AdminDashboardPage() {
           
           <div className="grid gap-4">
             <Link href="/admin/creators">
-              <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-purple-500/50 hover:bg-zinc-900 transition-all duration-300 group">
+              <div className="p-4 rounded-2xl bg-zinc-900/50 border border-border-theme hover:border-purple-500/50 hover:bg-zinc-900 transition-all duration-300 group">
                 <p className="font-bold mb-1">Approve Creators</p>
                 <p className="text-sm text-zinc-500 group-hover:text-zinc-400">Review pending creator registrations.</p>
               </div>
             </Link>
             <Link href="/admin/content">
-              <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-pink-500/50 hover:bg-zinc-900 transition-all duration-300 group">
+              <div className="p-4 rounded-2xl bg-zinc-900/50 border border-border-theme hover:border-pink-500/50 hover:bg-zinc-900 transition-all duration-300 group">
                 <p className="font-bold mb-1">Moderate Content</p>
                 <p className="text-sm text-zinc-500 group-hover:text-zinc-400">Review and delete reported content.</p>
               </div>
             </Link>
             <Link href="/admin/theme">
-              <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-indigo-500/50 hover:bg-zinc-900 transition-all duration-300 group">
+              <div className="p-4 rounded-2xl bg-zinc-900/50 border border-border-theme hover:border-indigo-500/50 hover:bg-zinc-900 transition-all duration-300 group">
                 <p className="font-bold mb-1">Global Theme</p>
                 <p className="text-sm text-zinc-500 group-hover:text-zinc-400">Customize the application aesthetics.</p>
               </div>
             </Link>
           </div>
 
-          <div className="mt-8 pt-8 border-t border-zinc-900">
+          <div className="mt-8 pt-8 border-t border-border-theme">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold">System Status</h3>
                 <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 uppercase tracking-widest leading-none">

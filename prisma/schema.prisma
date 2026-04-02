@@ -11,88 +11,91 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  username      String    @unique
-  name          String?
-  password      String
-  dob           DateTime
-  role          Role      @default(USER)
+  id       String   @id @default(cuid())
+  email    String   @unique
+  username String   @unique
+  name     String?
+  password String
+  dob      DateTime
+  role     Role     @default(USER)
 
   // Creator Verification Fields
-  creatorStatus CreatorStatus @default(NONE)
-  creatorProfile  CreatorProfile?
-  idProofUrl    String?       
-  verifiedAt    DateTime?
+  creatorStatus  CreatorStatus   @default(NONE)
+  creatorProfile CreatorProfile?
+  idProofUrl     String?
+  verifiedAt     DateTime?
 
-  walletBalance Int       @default(0)
+  walletBalance Int      @default(0)
   image         String?
   bio           String?
   gender        String?
   interestedIn  String?
-  createdAt     DateTime  @default(now())
-  
-  sessions      Session[]
-  posts         Post[]
-  reels         Reel[]
-  
+  isGhost       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  sessions   Session[]
+  posts      Post[]
+  reels      Reel[]
+  likedPosts PostLike[]
+  comments   PostComment[]
+
   // Dating Relationships
   sentMatches     Match[]        @relation("SentMatches")
   receivedMatches Match[]        @relation("ReceivedMatches")
   interests       UserInterest[]
-  
+
   // AI Companion Relationship
   aiConversations AIConversation[]
 
-  follows   Follow[] @relation("follower") // People THIS user follows
-  followers Follow[] @relation("following") // People following THIS user
-  followersCount Int      @default(0)
-  followingCount Int      @default(0)
-  subscribersCount Int    @default(0)
-  revenues      Revenue[]  @relation("CreatorRevenue") // Revenue earned
-  purchases     Purchase[]
-  spendings     Revenue[]  @relation("UserSpendings") // Money spent
+  follows          Follow[]   @relation("follower") // People THIS user follows
+  followers        Follow[]   @relation("following") // People following THIS user
+  followersCount   Int        @default(0)
+  followingCount   Int        @default(0)
+  subscribersCount Int        @default(0)
+  revenues         Revenue[]  @relation("CreatorRevenue") // Revenue earned
+  purchases        Purchase[]
+  spendings        Revenue[]  @relation("UserSpendings") // Money spent
 }
 
 model Follow {
-  follower    User   @relation("follower", fields: [followerId], references: [id])
-  followerId  String
-  following   User   @relation("following", fields: [followingId], references: [id])
-  followingId String
-  subscriptionTier Int @default(0) // 0: just follow, 1-3: tiers
-  expiresAt   DateTime? // For future subscription expiry logic
+  follower         User      @relation("follower", fields: [followerId], references: [id])
+  followerId       String
+  following        User      @relation("following", fields: [followingId], references: [id])
+  followingId      String
+  subscriptionTier Int       @default(0) // 0: just follow, 1-3: tiers
+  expiresAt        DateTime? // For future subscription expiry logic
 
   @@id([followerId, followingId])
 }
 
 model CreatorProfile {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id])
-  categories        String[] // Lingerie, Nudity, etc.
-  idProofUrl        String   // URL from S3/Cloudinary
-  selfieUrl         String   // URL from S3/Cloudinary
-  tier1Price        Int      @default(0)
-  tier2Price        Int      @default(0)
-  tier3Price        Int      @default(0)
-  status            Status   @default(PENDING)
-  createdAt         DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id])
+  categories String[] // Lingerie, Nudity, etc.
+  idProofUrl String // URL from S3/Cloudinary
+  selfieUrl  String // URL from S3/Cloudinary
+  tier1Price Int      @default(0)
+  tier2Price Int      @default(0)
+  tier3Price Int      @default(0)
+  status     Status   @default(PENDING)
+  createdAt  DateTime @default(now())
 }
 
 model Revenue {
   id        String   @id @default(cuid())
   creatorId String
-  senderId  String?   // The user who paid
+  senderId  String? // The user who paid
   amount    Int
-  type      String   // e.g., "SUBSCRIPTION", "POST_PURCHASE", "REEL_PURCHASE", "TIP"
+  type      String // e.g., "SUBSCRIPTION", "POST_PURCHASE", "REEL_PURCHASE", "TIP"
   createdAt DateTime @default(now())
-  
-  creator   User     @relation("CreatorRevenue", fields: [creatorId], references: [id])
-  sender    User?    @relation("UserSpendings", fields: [senderId], references: [id])
+
+  creator User  @relation("CreatorRevenue", fields: [creatorId], references: [id])
+  sender  User? @relation("UserSpendings", fields: [senderId], references: [id])
 
   // Optional links to specific content
-  postId    String?
-  reelId    String?
+  postId String?
+  reelId String?
 
   @@index([creatorId])
   @@index([senderId])
@@ -112,19 +115,19 @@ model Match {
 }
 
 model AIConversation {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   userId    String
-  persona   String    
-  messages  Json      
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  persona   String
+  messages  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Interest {
-  id    String @id @default(cuid())
-  name  String @unique
+  id    String         @id @default(cuid())
+  name  String         @unique
   users UserInterest[]
 }
 
@@ -142,12 +145,15 @@ model Post {
   imageUrl  String
   caption   String?
   isPremium Boolean  @default(false)
-  price     Int?     
+  isPrivate Boolean  @default(false)
+  price     Int?
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   purchases Purchase[]
+  likes     PostLike[]    @relation("PostLikes")
+  comments  PostComment[] @relation("PostComments")
 
   @@index([authorId])
 }
@@ -157,7 +163,8 @@ model Reel {
   videoUrl  String
   caption   String?
   isPremium Boolean  @default(false)
-  price     Int?     
+  isPrivate Boolean  @default(false)
+  price     Int?
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
@@ -173,10 +180,10 @@ model Purchase {
   postId    String?
   reelId    String?
   createdAt DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post      Post?    @relation(fields: [postId], references: [id])
-  reel      Reel?    @relation(fields: [reelId], references: [id])
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post? @relation(fields: [postId], references: [id])
+  reel Reel? @relation(fields: [reelId], references: [id])
 
   @@unique([userId, postId])
   @@unique([userId, reelId])
@@ -221,4 +228,29 @@ model SystemSettings {
   id          String   @id @default("default")
   platformFee Int      @default(20) // Percentage
   updatedAt   DateTime @updatedAt
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation("PostLikes", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  text      String
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation("PostComments", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
 }

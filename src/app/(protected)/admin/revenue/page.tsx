@@ -52,7 +52,7 @@ export default function AdminRevenuePage() {
 
   return (
     <div className="space-y-10 pb-20">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-950 p-10 rounded-[2.5rem] border border-zinc-900 shadow-2xl relative overflow-hidden">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-950 p-10 rounded-[2.5rem] border border-border-theme shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none text-emerald-500">
             <DollarSign size={200} />
         </div>
@@ -71,10 +71,10 @@ export default function AdminRevenuePage() {
                     placeholder="Search users or creators..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-12 pr-6 py-4 bg-black border border-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all w-full backdrop-blur-xl font-bold text-xs"
+                    className="pl-12 pr-6 py-4 bg-black border border-border-theme rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all w-full backdrop-blur-xl font-bold text-xs"
                 />
             </div>
-            <div className="flex bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800">
+            <div className="flex bg-zinc-900/50 p-1 rounded-2xl border border-border-theme">
                 {["ALL", "SUBSCRIPTION", "POST_PURCHASE", "TIP"].map((type) => (
                     <button
                         key={type}
@@ -89,11 +89,11 @@ export default function AdminRevenuePage() {
       </header>
 
       {/* Transaction Table */}
-      <div className="bg-zinc-950 border border-zinc-900 rounded-[2.5rem] overflow-hidden shadow-2xl">
+      <div className="bg-zinc-950 border border-border-theme rounded-[2.5rem] overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-zinc-900 text-zinc-500 text-[10px] font-black uppercase tracking-widest bg-zinc-900/20">
+              <tr className="border-b border-border-theme text-zinc-500 text-[10px] font-black uppercase tracking-widest bg-zinc-900/20">
                 <th className="py-8 px-10">Sender (User)</th>
                 <th className="py-8 px-10">Receiver (Creator)</th>
                 <th className="py-8 px-10">Type & Reference</th>
@@ -123,7 +123,7 @@ export default function AdminRevenuePage() {
                   >
                     <td className="py-8 px-10">
                       <Link href={`/admin/users/${log.senderId}`} className="flex items-center gap-3 group/link">
-                         <div className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-black text-xs text-zinc-400 group-hover/link:text-emerald-400 group-hover/link:border-emerald-500/30 transition-all">
+                         <div className="w-10 h-10 rounded-full bg-zinc-900 border border-border-theme flex items-center justify-center font-black text-xs text-zinc-400 group-hover/link:text-emerald-400 group-hover/link:border-emerald-500/30 transition-all">
                             {log.sender?.username[0].toUpperCase() || "?"}
                          </div>
                          <span className="font-black text-sm group-hover/link:text-emerald-400 transition-all">{log.sender?.username || "System/Unknown"}</span>
@@ -131,7 +131,7 @@ export default function AdminRevenuePage() {
                     </td>
                     <td className="py-8 px-10">
                       <Link href={`/admin/users/${log.creatorId}`} className="flex items-center gap-3 group/link">
-                         <div className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-black text-xs text-zinc-400 group-hover/link:text-purple-400 group-hover/link:border-purple-500/30 transition-all">
+                         <div className="w-10 h-10 rounded-full bg-zinc-900 border border-border-theme flex items-center justify-center font-black text-xs text-zinc-400 group-hover/link:text-purple-400 group-hover/link:border-purple-500/30 transition-all">
                             {log.creator?.username[0].toUpperCase() || "?"}
                          </div>
                          <span className="font-black text-sm group-hover/link:text-purple-400 transition-all">{log.creator?.username}</span>
@@ -158,7 +158,7 @@ export default function AdminRevenuePage() {
                         </div>
                     </td>
                     <td className="py-8 px-10 text-right">
-                        <button className="p-3 bg-zinc-900 rounded-2xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all border border-zinc-800 hover:border-emerald-500/30">
+                        <button className="p-3 bg-zinc-900 rounded-2xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all border border-border-theme hover:border-emerald-500/30">
                             <ExternalLink size={16} />
                         </button>
                     </td>
@@ -170,7 +170,7 @@ export default function AdminRevenuePage() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between p-10 border-t border-zinc-900 bg-zinc-900/10">
+        <div className="flex items-center justify-between p-10 border-t border-border-theme bg-zinc-900/10">
           <p className="text-zinc-500 text-xs font-black uppercase tracking-widest">
             Audit <span className="text-white">{(page - 1) * 15 + 1} - {Math.min(page * 15, total)}</span> of {total}
           </p>

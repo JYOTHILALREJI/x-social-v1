@@ -20,7 +20,7 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 z-50 w-full border-t border-zinc-800 bg-black/90 backdrop-blur-lg px-2 py-3 
+    <nav className="fixed bottom-0 left-0 z-50 w-full border-t border-border-theme bg-black/90 backdrop-blur-lg px-2 py-3 
                     md:top-0 md:left-0 md:h-screen md:w-20 md:flex-col md:border-t-0 md:border-r md:py-8 lg:w-64">
       <div className="flex w-full items-center justify-around md:h-full md:flex-col md:justify-start md:gap-8 lg:items-start lg:px-6">
         

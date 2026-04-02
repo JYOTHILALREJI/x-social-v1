@@ -50,10 +50,10 @@ export default function AdminSidebar() {
     <motion.aside
       animate={{ width: isSidebarCollapsed ? "80px" : "280px" }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="fixed left-0 top-0 h-screen bg-zinc-950 border-r border-zinc-900 z-50 flex flex-col"
+      className="fixed left-0 top-0 h-screen bg-zinc-950 border-r border-border-theme z-50 flex flex-col"
     >
       {/* Header / Logo */}
-      <div className="p-6 flex items-center justify-between border-b border-zinc-900">
+      <div className="p-6 flex items-center justify-between border-b border-border-theme">
         <AnimatePresence mode="wait">
           {!isSidebarCollapsed && (
             <motion.div
@@ -115,7 +115,7 @@ export default function AdminSidebar() {
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-zinc-900">
+      <div className="p-4 border-t border-border-theme">
         <Link href="/feed">
           <motion.div
             whileHover={{ scale: 1.02 }}

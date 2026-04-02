@@ -19,7 +19,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
   const session = await prisma.session.findUnique({
     where: { sessionToken },
     include: {
-      user: { select: { id: true, walletBalance: true } }
+      user: { select: { id: true, walletBalance: true, isGhost: true } }
     }
   });
 
@@ -40,8 +40,10 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
     select: {
       id: true,
       username: true,
+      name: true,
       role: true,
       creatorStatus: true,
+      isGhost: true,
       image: true,
       bio: true,
       followersCount: true,
@@ -55,6 +57,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
         }
       },
       posts: {
+        where: { author: { isGhost: false }, isPrivate: false },
         take: 10,
         select: { 
           id: true, 
@@ -67,6 +70,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
         orderBy: { createdAt: 'desc' }
       },
       reels: {
+        where: { author: { isGhost: false }, isPrivate: false },
         take: 10,
         select: { 
           id: true, 
@@ -84,7 +88,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
     }
   });
 
-  if (!profile) {
+  if (!profile || (profile.isGhost && profile.id !== currentUserId)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white px-6">
         <div className="text-center space-y-4">
@@ -112,6 +116,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
     <PublicProfileClient 
       currentUserId={currentUserId} 
       currentUserBalance={session.user.walletBalance}
+      currentIsGhost={session.user.isGhost}
       profile={profile as any} 
       isInitialFollowing={isInitialFollowing} 
       initialSubscriptionTier={initialSubscriptionTier}

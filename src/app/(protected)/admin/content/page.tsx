@@ -49,7 +49,7 @@ export default function ContentManagementPage() {
 
   return (
     <div className="space-y-8 pb-12">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-950 p-8 rounded-3xl border border-zinc-900 shadow-2xl overflow-hidden relative">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-950 p-8 rounded-3xl border border-border-theme shadow-2xl overflow-hidden relative">
         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
             <ImageIcon size={200} />
         </div>
@@ -67,17 +67,17 @@ export default function ContentManagementPage() {
                     placeholder="Search content..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-12 pr-6 py-3.5 bg-black border border-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all w-full md:w-64 backdrop-blur-xl"
+                    className="pl-12 pr-6 py-3.5 bg-black border border-border-theme rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all w-full md:w-64 backdrop-blur-xl"
                 />
             </div>
-            <button className="p-3.5 bg-zinc-900 rounded-2xl text-zinc-400 hover:text-white transition-colors border border-zinc-800">
+            <button className="p-3.5 bg-zinc-900 rounded-2xl text-zinc-400 hover:text-white transition-colors border border-border-theme">
                 <Filter size={20} />
             </button>
         </div>
       </header>
 
       {/* Tabs */}
-      <div className="flex p-1.5 bg-zinc-950 border border-zinc-900 rounded-2xl w-fit shadow-xl">
+      <div className="flex p-1.5 bg-zinc-950 border border-border-theme rounded-2xl w-fit shadow-xl">
         <button 
           onClick={() => setTab('posts')}
           className={`px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all duration-300 ${tab === 'posts' ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'text-zinc-500 hover:text-zinc-300'}`}
@@ -97,13 +97,13 @@ export default function ContentManagementPage() {
         <AnimatePresence mode="popLayout">
           {loading ? (
              Array(8).fill(0).map((_, i) => (
-                <div key={i} className="aspect-[3/4] bg-zinc-950 rounded-3xl border border-zinc-900 animate-pulse" />
+                <div key={i} className="aspect-[3/4] bg-zinc-950 rounded-3xl border border-border-theme animate-pulse" />
              ))
           ) : filteredList.length === 0 ? (
             <motion.div 
                initial={{ opacity: 0 }} 
                animate={{ opacity: 1 }} 
-               className="col-span-full py-32 flex flex-col items-center justify-center text-zinc-500 bg-zinc-950 rounded-3xl border border-zinc-900 border-dashed"
+               className="col-span-full py-32 flex flex-col items-center justify-center text-zinc-500 bg-zinc-950 rounded-3xl border border-border-theme border-dashed"
             >
                <ImageIcon size={48} className="mb-4 opacity-20" />
                <p className="text-xl font-bold">No content found</p>
@@ -116,7 +116,7 @@ export default function ContentManagementPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ delay: i * 0.05 }}
-              className="group bg-zinc-950 rounded-3xl border border-zinc-900 overflow-hidden shadow-xl hover:shadow-2xl hover:border-zinc-800 transition-all duration-500 relative"
+              className="group bg-zinc-950 rounded-3xl border border-border-theme overflow-hidden shadow-xl hover:shadow-2xl hover:border-border-theme transition-all duration-500 relative"
             >
               {/* Media Preview */}
               <div className="aspect-[3/4] relative bg-black overflow-hidden">

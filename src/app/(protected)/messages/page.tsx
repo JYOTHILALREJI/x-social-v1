@@ -22,9 +22,9 @@ const MessagesPage = () => {
       {/* 1. MIDDLE SECTION: Messaging / Chat Window (Takes most space) */}
       <div className="flex-1 flex flex-col bg-zinc-950/20 relative">
         {/* Chat Header */}
-        <div className="p-4 md:p-6 border-b border-zinc-900 flex items-center justify-between backdrop-blur-md bg-black/40">
+        <div className="p-4 md:p-6 border-b border-border-theme flex items-center justify-between backdrop-blur-md bg-black/40">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700" />
+            <div className="w-10 h-10 rounded-full bg-zinc-800 border border-border-theme" />
             <div>
               <h2 className="font-bold text-sm md:text-base">Sarah Chen</h2>
               <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest">Online</p>
@@ -35,7 +35,7 @@ const MessagesPage = () => {
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
-          <div className="max-w-[80%] bg-zinc-900/50 p-4 rounded-2xl rounded-tl-none border border-zinc-800/50 text-sm">
+          <div className="max-w-[80%] bg-zinc-900/50 p-4 rounded-2xl rounded-tl-none border border-border-theme text-sm">
             Hey! Have you seen the latest UI updates for the Reels page?
           </div>
           <div className="max-w-[80%] bg-white text-black p-4 rounded-2xl rounded-br-none ml-auto text-sm font-medium">
@@ -44,7 +44,7 @@ const MessagesPage = () => {
         </div>
 
         {/* Message Input */}
-        <div className="p-4 md:p-6 border-t border-zinc-900 bg-black">
+        <div className="p-4 md:p-6 border-t border-border-theme bg-black">
           <div className="relative flex items-center gap-4">
             <div className="flex-1 relative">
               <input 
@@ -52,7 +52,7 @@ const MessagesPage = () => {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Write a message..."
-                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl py-3 px-12 focus:outline-none focus:ring-1 focus:ring-zinc-600 text-sm"
+                className="w-full bg-zinc-900/50 border border-border-theme rounded-2xl py-3 px-12 focus:outline-none focus:ring-1 focus:ring-zinc-600 text-sm"
               />
               <Smile className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
               <Paperclip className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white cursor-pointer" size={20} />
@@ -65,7 +65,7 @@ const MessagesPage = () => {
       </div>
 
       {/* 2. RIGHT SECTION: Chat List (Sidebar-style on the right) */}
-      <div className="hidden lg:flex w-[350px] border-l border-zinc-900 flex-col bg-black">
+      <div className="hidden lg:flex w-[350px] border-l border-border-theme flex-col bg-black">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-xl font-black italic tracking-tighter uppercase">Contacts</h1>
@@ -77,16 +77,16 @@ const MessagesPage = () => {
             <input 
               type="text"
               placeholder="Search..."
-              className="w-full bg-zinc-900/30 border border-zinc-800/50 rounded-xl py-2 pl-10 pr-4 text-xs focus:outline-none focus:border-zinc-700 transition-all"
+              className="w-full bg-zinc-900/30 border border-border-theme rounded-xl py-2 pl-10 pr-4 text-xs focus:outline-none focus:border-border-theme transition-all"
             />
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto no-scrollbar">
           {chats.map((chat) => (
-            <div key={chat.id} className="px-6 py-4 flex items-center gap-4 hover:bg-zinc-900/30 cursor-pointer transition-all border-b border-zinc-900/50 last:border-0 group">
+            <div key={chat.id} className="px-6 py-4 flex items-center gap-4 hover:bg-zinc-900/30 cursor-pointer transition-all border-b border-border-theme last:border-0 group">
               <div className="relative">
-                <div className="w-12 h-12 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-zinc-600 text-sm">
+                <div className="w-12 h-12 rounded-full bg-zinc-800 border border-border-theme flex items-center justify-center font-bold text-zinc-600 text-sm">
                   {chat.name[0]}
                 </div>
                 {chat.online && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-black rounded-full" />}

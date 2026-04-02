@@ -20,7 +20,10 @@ async function main() {
         idProofUrl: 'test-url',
         selfieUrl: 'test-url',
         status: 'APPROVED',
-        subscriptionPrice: 10
+        tier1Price: 500,
+        tier2Price: 1000,
+        tier3Price: 2000,
+        categories: []
       }
     });
 

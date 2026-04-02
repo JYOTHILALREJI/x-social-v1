@@ -52,7 +52,7 @@ export default function AdminThemePage() {
 
   return (
     <div className="space-y-8 pb-12">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-950 p-8 rounded-3xl border border-zinc-900 shadow-2xl overflow-hidden relative">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-950 p-8 rounded-3xl border border-border-theme shadow-2xl overflow-hidden relative">
         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none text-purple-500">
             <Palette size={200} />
         </div>
@@ -71,7 +71,7 @@ export default function AdminThemePage() {
                 {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={18} />}
                 Save Changes
             </button>
-            <button className="p-3.5 bg-zinc-900 rounded-2xl text-zinc-400 hover:text-white transition-colors border border-zinc-800">
+            <button className="p-3.5 bg-zinc-900 rounded-2xl text-zinc-400 hover:text-white transition-colors border border-border-theme">
                 <RotateCcw size={20} />
             </button>
         </div>
@@ -91,7 +91,7 @@ export default function AdminThemePage() {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
                         className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl text-sm font-bold transition-all duration-300
-                            ${activeTab === tab.id ? 'bg-zinc-900 text-white border border-zinc-800' : 'text-zinc-500 hover:bg-zinc-900/50'}`}
+                            ${activeTab === tab.id ? 'bg-zinc-900 text-white border border-border-theme' : 'text-zinc-500 hover:bg-zinc-900/50'}`}
                     >
                         <div className="flex items-center gap-3">
                             <Icon size={18} className={activeTab === tab.id ? "text-purple-500" : ""} />
@@ -112,7 +112,7 @@ export default function AdminThemePage() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="p-10 bg-zinc-950 rounded-3xl border border-zinc-900 shadow-xl space-y-10"
+                className="p-10 bg-zinc-950 rounded-3xl border border-border-theme shadow-xl space-y-10"
               >
                 <div className="space-y-6">
                     <h2 className="text-xl font-bold flex items-center gap-2">
@@ -154,13 +154,13 @@ export default function AdminThemePage() {
                     </div>
                 </div>
 
-                <div className="space-y-6 pt-10 border-t border-zinc-900">
+                <div className="space-y-6 pt-10 border-t border-border-theme">
                     <h2 className="text-xl font-bold flex items-center gap-2">
                         <Moon size={20} className="text-blue-500" />
                         Mode & Effects
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="p-6 bg-zinc-900/50 rounded-2xl border border-zinc-800 flex items-center justify-between group hover:border-blue-500/50 transition-all">
+                        <div className="p-6 bg-zinc-900/50 rounded-2xl border border-border-theme flex items-center justify-between group hover:border-blue-500/50 transition-all">
                              <div className="space-y-1">
                                 <p className="font-bold">Glassmorphism</p>
                                 <p className="text-xs text-zinc-500">Enable frosted glass effects globally.</p>
@@ -176,7 +176,7 @@ export default function AdminThemePage() {
                              </div>
                         </div>
 
-                        <div className="p-6 bg-zinc-900/50 rounded-2xl border border-zinc-800 flex items-center justify-between group hover:border-purple-500/50 transition-all">
+                        <div className="p-6 bg-zinc-900/50 rounded-2xl border border-border-theme flex items-center justify-between group hover:border-purple-500/50 transition-all">
                              <div className="space-y-1">
                                 <p className="font-bold">Ultra-Smooth Animations</p>
                                 <p className="text-xs text-zinc-500">Enable high-framerate transitions.</p>
@@ -198,7 +198,7 @@ export default function AdminThemePage() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="p-10 bg-zinc-950 rounded-3xl border border-zinc-900 shadow-xl space-y-10"
+                className="p-10 bg-zinc-950 rounded-3xl border border-border-theme shadow-xl space-y-10"
                >
                  <div className="space-y-6">
                     <h2 className="text-xl font-bold flex items-center gap-2">
@@ -211,10 +211,10 @@ export default function AdminThemePage() {
                                 key={r}
                                 onClick={() => setThemeSettings({ ...themeSettings, borderRadius: r })}
                                 className={`p-6 rounded-2xl border transition-all text-center group
-                                    ${themeSettings.borderRadius === r ? 'bg-pink-500/10 border-pink-500 text-pink-500' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
+                                    ${themeSettings.borderRadius === r ? 'bg-pink-500/10 border-pink-500 text-pink-500' : 'bg-zinc-900 border-border-theme text-zinc-500 hover:border-border-theme'}`}
                             >
                                 <div 
-                                    className="w-12 h-12 mx-auto mb-4 bg-zinc-800 border-2 border-dashed border-zinc-700 group-hover:bg-zinc-700 transition-colors" 
+                                    className="w-12 h-12 mx-auto mb-4 bg-zinc-800 border-2 border-dashed border-border-theme group-hover:bg-zinc-700 transition-colors" 
                                     style={{ borderRadius: r }} 
                                 />
                                 <p className="text-xs font-black uppercase tracking-widest">{r === "0.5rem" ? "Sharp" : r === "1rem" ? "Rounded" : r === "3rem" ? "Super Soft" : "Curvy"}</p>
@@ -228,7 +228,7 @@ export default function AdminThemePage() {
           </AnimatePresence>
           
           {/* Live Preview Card */}
-          <div className="mt-12 p-10 bg-zinc-950 rounded-3xl border border-zinc-900 border-dashed relative overflow-hidden">
+          <div className="mt-12 p-10 bg-zinc-950 rounded-3xl border border-border-theme border-dashed relative overflow-hidden">
              <div className="absolute top-0 left-0 p-6 opacity-10">
                 <Monitor size={100} />
              </div>
@@ -266,11 +266,11 @@ export default function AdminThemePage() {
                         <p className="text-zinc-500 text-sm italic">"The user should be wowed at first glance by the design. Use best practices in modern web design (e.g. vibrant colors, dark modes, glassmorphism, and dynamic animations) to create a stunning first impression."</p>
                     </div>
                     <div className="flex gap-4">
-                        <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 flex-1">
+                        <div className="p-4 rounded-2xl bg-zinc-900 border border-border-theme flex-1">
                              <h5 className="font-bold text-xs uppercase tracking-widest text-zinc-500 mb-1">Color Token</h5>
                              <p className="font-mono font-bold text-sm text-purple-400">{themeSettings.primaryColor}</p>
                         </div>
-                        <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 flex-1">
+                        <div className="p-4 rounded-2xl bg-zinc-900 border border-border-theme flex-1">
                              <h5 className="font-bold text-xs uppercase tracking-widest text-zinc-500 mb-1">Border Radius</h5>
                              <p className="font-mono font-bold text-sm text-pink-400">{themeSettings.borderRadius}</p>
                         </div>

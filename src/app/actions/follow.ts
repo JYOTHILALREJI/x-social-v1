@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 
 export async function toggleFollow(followerId: string, followingId: string, isFollowing: boolean) {
   try {
+    const user = await prisma.user.findUnique({ where: { id: followerId }, select: { isGhost: true } });
+    if (user?.isGhost && !isFollowing) {
+      return { success: false, error: "Ghost accounts cannot follow others." };
+    }
+
     if (isFollowing) {
       // UNFOLLOW LOGIC
       await prisma.$transaction([

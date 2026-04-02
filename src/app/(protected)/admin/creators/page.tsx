@@ -47,7 +47,7 @@ export default function CreatorManagementPage() {
 
   return (
     <div className="space-y-8 pb-12">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-950 p-8 rounded-3xl border border-zinc-900 shadow-2xl overflow-hidden relative">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-950 p-8 rounded-3xl border border-border-theme shadow-2xl overflow-hidden relative">
         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
             <UserRoundCheck size={200} />
         </div>
@@ -61,13 +61,13 @@ export default function CreatorManagementPage() {
             <select 
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="bg-black border border-zinc-900 rounded-2xl px-6 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none font-bold text-sm tracking-wide transition-all"
+                className="bg-black border border-border-theme rounded-2xl px-6 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none font-bold text-sm tracking-wide transition-all"
             >
                 <option value="PENDING">PENDING REVIEW</option>
                 <option value="APPROVED">ACTIVE CREATORS</option>
                 <option value="REJECTED">REJECTED</option>
             </select>
-            <button className="p-3.5 bg-zinc-900 rounded-2xl text-zinc-400 hover:text-white transition-colors border border-zinc-800">
+            <button className="p-3.5 bg-zinc-900 rounded-2xl text-zinc-400 hover:text-white transition-colors border border-border-theme">
                 <Filter size={20} />
             </button>
         </div>
@@ -78,13 +78,13 @@ export default function CreatorManagementPage() {
         <AnimatePresence mode="popLayout">
           {loading ? (
              Array(4).fill(0).map((_, i) => (
-                <div key={i} className="animate-pulse bg-zinc-950 rounded-3xl border border-zinc-900 h-64 shadow-xl" />
+                <div key={i} className="animate-pulse bg-zinc-950 rounded-3xl border border-border-theme h-64 shadow-xl" />
              ))
           ) : pending.length === 0 ? (
             <motion.div 
                initial={{ opacity: 0 }} 
                animate={{ opacity: 1 }} 
-               className="col-span-full flex flex-col items-center justify-center p-20 bg-zinc-950 rounded-3xl border border-zinc-800 border-dashed text-zinc-500"
+               className="col-span-full flex flex-col items-center justify-center p-20 bg-zinc-950 rounded-3xl border border-border-theme border-dashed text-zinc-500"
             >
                <div className="p-6 rounded-full bg-zinc-900 mb-6">
                 <Check size={48} className="text-emerald-500" />
@@ -99,11 +99,11 @@ export default function CreatorManagementPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
               transition={{ delay: i * 0.1 }}
-              className="bg-zinc-950 rounded-3xl border border-zinc-900 p-8 shadow-xl hover:shadow-2xl hover:border-zinc-800 transition-all duration-500 relative group overflow-hidden"
+              className="bg-zinc-950 rounded-3xl border border-border-theme p-8 shadow-xl hover:shadow-2xl hover:border-border-theme transition-all duration-500 relative group overflow-hidden"
             >
               <div className="absolute top-0 right-0 p-4 transform translate-y-10 group-hover:translate-y-0 transition-transform flex flex-col gap-2 opacity-0 group-hover:opacity-100">
-                   <button className="p-3 bg-zinc-900/80 backdrop-blur-md rounded-2xl text-zinc-400 hover:text-white border border-zinc-800 shadow-xl transition-all"><Eye size={20} /></button>
-                   <button className="p-3 bg-zinc-900/80 backdrop-blur-md rounded-2xl text-zinc-400 hover:text-white border border-zinc-800 shadow-xl transition-all"><ExternalLink size={20} /></button>
+                   <button className="p-3 bg-zinc-900/80 backdrop-blur-md rounded-2xl text-zinc-400 hover:text-white border border-border-theme shadow-xl transition-all"><Eye size={20} /></button>
+                   <button className="p-3 bg-zinc-900/80 backdrop-blur-md rounded-2xl text-zinc-400 hover:text-white border border-border-theme shadow-xl transition-all"><ExternalLink size={20} /></button>
               </div>
 
               <div className="flex items-start gap-6 relative">
@@ -118,18 +118,18 @@ export default function CreatorManagementPage() {
                     </p>
                     <div className="flex flex-wrap gap-2 mt-4">
                         {item.categories?.map((cat: string) => (
-                            <span key={cat} className="px-3 py-1 bg-zinc-900 rounded-full text-[10px] font-black uppercase text-zinc-400 border border-zinc-800">{cat}</span>
+                            <span key={cat} className="px-3 py-1 bg-zinc-900 rounded-full text-[10px] font-black uppercase text-zinc-400 border border-border-theme">{cat}</span>
                         ))}
                     </div>
                  </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mt-8">
-                 <div className="p-4 bg-black/40 rounded-2xl border border-zinc-800/50 group-hover:border-zinc-700 transition-all">
+                 <div className="p-4 bg-black/40 rounded-2xl border border-border-theme group-hover:border-border-theme transition-all">
                     <p className="text-[10px] uppercase font-black text-zinc-500 tracking-widest mb-1 flex items-center gap-1.5"><Calendar size={12} /> Applied On</p>
                     <p className="font-bold text-sm text-white">{new Date(item.createdAt).toLocaleDateString()}</p>
                  </div>
-                 <div className="p-4 bg-black/40 rounded-2xl border border-zinc-800/50 group-hover:border-zinc-700 transition-all">
+                 <div className="p-4 bg-black/40 rounded-2xl border border-border-theme group-hover:border-border-theme transition-all">
                     <p className="text-[10px] uppercase font-black text-zinc-500 tracking-widest mb-1 flex items-center gap-1.5"><Camera size={12} /> ID Proof</p>
                     <p className="font-bold text-sm text-purple-400 cursor-pointer hover:underline">View Document</p>
                  </div>

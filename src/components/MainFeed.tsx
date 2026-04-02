@@ -45,13 +45,19 @@ const MainFeed = async () => {
   // 1. Fetch Followed Data
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: {
+    select: {
+      id: true,
+      walletBalance: true,
+      isGhost: true,
       follows: { 
+        where: {
+          following: { isGhost: false }
+        },
         select: {
           followingId: true,
           subscriptionTier: true,
           following: { 
-            select: { id: true, username: true, image: true } 
+            select: { id: true, username: true, name: true, image: true } 
           }
         }
       }
@@ -67,7 +73,11 @@ const MainFeed = async () => {
   
   if (followingIds.length > 0) {
     posts = await prisma.post.findMany({
-      where: { authorId: { in: followingIds } },
+      where: { 
+          authorId: { in: followingIds },
+          author: { isGhost: false },
+          isPrivate: false
+      },
       select: { 
         id: true, 
         caption: true, 
@@ -75,8 +85,17 @@ const MainFeed = async () => {
         isPremium: true, 
         price: true, 
         authorId: true,
-        author: { select: { username: true, image: true } },
-        purchases: { where: { userId } }
+        author: { select: { username: true, name: true, image: true } },
+        purchases: { where: { userId } },
+        likes: { where: { userId } },
+        _count: { select: { likes: true } },
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          include: { 
+            user: { select: { username: true, name: true, image: true } } 
+          }
+        }
       },
       orderBy: { createdAt: 'desc' },
       take: 20
@@ -85,21 +104,35 @@ const MainFeed = async () => {
     // 50% FREE, 50% PREMIUM MIX
     const [freePosts, premiumPosts] = await Promise.all([
       prisma.post.findMany({
-        where: { isPremium: false },
+        where: { isPremium: false, author: { isGhost: false }, isPrivate: false },
         take: 10,
         select: { 
             id: true, caption: true, createdAt: true, isPremium: true, price: true, authorId: true,
-            author: { select: { username: true, image: true } },
-            purchases: { where: { userId } }
+            author: { select: { username: true, name: true, image: true } },
+            purchases: { where: { userId } },
+            likes: { where: { userId } },
+            _count: { select: { likes: true } },
+            comments: {
+              orderBy: { createdAt: 'desc' },
+              take: 10,
+              include: { user: { select: { username: true, name: true, image: true } } }
+            }
         }
       }),
       prisma.post.findMany({
-        where: { isPremium: true },
+        where: { isPremium: true, author: { isGhost: false }, isPrivate: false },
         take: 10,
         select: { 
             id: true, caption: true, createdAt: true, isPremium: true, price: true, authorId: true,
-            author: { select: { username: true, image: true } },
-            purchases: { where: { userId } }
+            author: { select: { username: true, name: true, image: true } },
+            purchases: { where: { userId } },
+            likes: { where: { userId } },
+            _count: { select: { likes: true } },
+            comments: {
+              orderBy: { createdAt: 'desc' },
+              take: 10,
+              include: { user: { select: { username: true, name: true, image: true } } }
+            }
         }
       })
     ]);
@@ -116,7 +149,8 @@ const MainFeed = async () => {
   const suggested = await prisma.user.findMany({
     where: { 
       id: { notIn: [...followingIds, userId] },
-      role: "CREATOR"
+      role: "CREATOR",
+      isGhost: false
     },
     take: 4
   });
@@ -144,6 +178,7 @@ const MainFeed = async () => {
                 isSubscribed={subscriptions.includes(post.authorId)} 
                 currentUserId={userId}
                 currentUserBalance={user?.walletBalance || 0}
+                isGhost={user?.isGhost || false}
               />
               
               {/* INJECT SUGGESTED SECTION after 2 posts */}

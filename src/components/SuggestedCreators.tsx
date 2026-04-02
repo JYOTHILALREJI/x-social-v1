@@ -15,7 +15,7 @@ const SuggestedCreators = ({ suggested, currentUserId }: { suggested: any[], cur
   };
 
   return (
-    <div className="col-span-full py-12 my-8 border-y border-zinc-900/50 bg-zinc-950/20 rounded-[3rem] px-8">
+    <div className="col-span-full py-12 my-8 border-y border-border-theme bg-zinc-950/20 rounded-[3rem] px-8">
       <div className="flex items-center justify-between mb-8">
         <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">
           Suggested <span className="text-purple-500">For You</span>
@@ -24,7 +24,7 @@ const SuggestedCreators = ({ suggested, currentUserId }: { suggested: any[], cur
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {suggested.map((creator) => (
-          <div key={creator.id} className="relative aspect-[9/16] bg-zinc-900 rounded-3xl overflow-hidden group border border-zinc-800">
+          <div key={creator.id} className="relative aspect-[9/16] bg-zinc-900 rounded-3xl overflow-hidden group border border-border-theme">
             {/* Clickable Area for Profile */}
             <Link href={`/profile/${creator.id}`} className="absolute inset-0 z-10">
               <Image 
@@ -39,7 +39,16 @@ const SuggestedCreators = ({ suggested, currentUserId }: { suggested: any[], cur
                 <div className="w-6 h-6 rounded-full overflow-hidden relative border border-white/20">
                   <Image src={creator.image || "/default_user_profile/default-avatar.png"} alt="" fill className="object-cover" />
                 </div>
-                <span className="text-[10px] font-bold text-white uppercase italic">@{creator.username}</span>
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-[10px] font-black text-white uppercase italic truncate">
+                    {creator.name || creator.username}
+                  </span>
+                  {creator.name && (
+                    <span className="text-[8px] font-bold text-zinc-500 lowercase opacity-60">
+                      @{creator.username}
+                    </span>
+                  )}
+                </div>
               </Link>
               <button 
                 onClick={() => handleFollow(creator.id)}

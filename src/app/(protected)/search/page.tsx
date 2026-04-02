@@ -58,7 +58,7 @@ const SearchPage = ({ currentUserId }: { currentUserId: string }) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by User ID, Name or Username..."
-            className="w-full bg-zinc-900/20 border border-zinc-800/50 rounded-[2rem] py-6 pl-16 pr-14 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500/50 transition-all backdrop-blur-md text-zinc-100 text-lg placeholder:text-zinc-600 font-medium"
+            className="w-full bg-zinc-900/20 border border-border-theme rounded-[2rem] py-6 pl-16 pr-14 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500/50 transition-all backdrop-blur-md text-zinc-100 text-lg placeholder:text-zinc-600 font-medium"
           />
           {searchQuery && (
             <button 
@@ -81,10 +81,10 @@ const SearchPage = ({ currentUserId }: { currentUserId: string }) => {
                   <Link 
                     href={`/profile/${user.id}`} 
                     key={user.id}
-                    className="flex items-center justify-between p-6 bg-zinc-900/20 border border-zinc-800/50 rounded-3xl hover:bg-zinc-800/30 transition-all cursor-pointer group hover:border-zinc-700"
+                    className="flex items-center justify-between p-6 bg-zinc-900/20 border border-border-theme rounded-3xl hover:bg-zinc-800/30 transition-all cursor-pointer group hover:border-border-theme"
                   >
                     <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-zinc-800 to-zinc-950 border border-zinc-800 flex items-center justify-center font-black text-zinc-400 text-xl italic overflow-hidden relative">
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-zinc-800 to-zinc-950 border border-border-theme flex items-center justify-center font-black text-zinc-400 text-xl italic overflow-hidden relative">
                         {user.image ? (
                            <img src={user.image} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -117,7 +117,7 @@ const SearchPage = ({ currentUserId }: { currentUserId: string }) => {
             </>
           ) : (
             <div className="flex flex-col items-center justify-center py-32 text-center">
-              <div className="w-24 h-24 rounded-full bg-zinc-900/50 flex items-center justify-center mb-8 border border-zinc-800">
+              <div className="w-24 h-24 rounded-full bg-zinc-900/50 flex items-center justify-center mb-8 border border-border-theme">
                 <Users size={40} className="text-zinc-700" />
               </div>
               <h2 className="text-2xl font-black uppercase italic tracking-tighter text-zinc-500">

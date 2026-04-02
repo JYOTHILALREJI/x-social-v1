@@ -77,7 +77,7 @@ const AuthPage = () => {
       <div className="w-full max-w-md perspective-1000">
         
         {/* TOGGLE PILL */}
-        <div className="flex bg-zinc-900/50 backdrop-blur-md p-1 rounded-full mb-8 relative border border-zinc-800">
+        <div className="flex bg-zinc-900/50 backdrop-blur-md p-1 rounded-full mb-8 relative border border-border-theme">
           <motion.div 
             className="absolute top-1 bottom-1 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.2)]"
             initial={false}
@@ -115,14 +115,14 @@ const AuthPage = () => {
               animate={{ rotateY: 0, opacity: 1 }}
               exit={{ rotateY: isLogin ? 90 : -90, opacity: 0 }}
               transition={{ duration: 0.5, ease: "backOut" }}
-              className="bg-zinc-900/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-zinc-800 shadow-2xl relative"
+              className="bg-zinc-900/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-border-theme shadow-2xl relative"
             >
               <div className="mb-8 text-center">
                 <h1 className="text-3xl font-black tracking-tighter uppercase mb-1">{isLogin ? "Welcome" : "Get Started"}</h1>
                 <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold leading-none">The Future of Premium Connection</p>
               </div>
 
-              <button onClick={handleGoogleSignIn} disabled={loading} className="w-full flex items-center justify-center gap-3 py-4 px-4 bg-white/5 border border-zinc-800 rounded-2xl text-sm font-bold hover:bg-white/10 transition-all mb-6 active:scale-95 disabled:opacity-50">
+              <button onClick={handleGoogleSignIn} disabled={loading} className="w-full flex items-center justify-center gap-3 py-4 px-4 bg-white/5 border border-border-theme rounded-2xl text-sm font-bold hover:bg-white/10 transition-all mb-6 active:scale-95 disabled:opacity-50">
                 <FcGoogle size={22} /> Continue with Google
               </button>
 
@@ -133,7 +133,7 @@ const AuthPage = () => {
                   <Mail className="absolute left-4 top-4 text-zinc-600 group-focus-within:text-white transition" size={18} />
                   <input 
                     type="email" placeholder="Email Address" required
-                    className="w-full pl-12 pr-4 py-4 rounded-2xl bg-black border border-zinc-800 focus:border-white/20 outline-none transition text-sm text-white"
+                    className="w-full pl-12 pr-4 py-4 rounded-2xl bg-black border border-border-theme focus:border-white/20 outline-none transition text-sm text-white"
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                   />
                 </div>
@@ -143,7 +143,7 @@ const AuthPage = () => {
                   <input 
                     type={showPassword ? "text" : "password"} 
                     placeholder="Password" required
-                    className="w-full pl-12 pr-12 py-4 rounded-2xl bg-black border border-zinc-800 focus:border-white/20 outline-none transition text-sm text-white"
+                    className="w-full pl-12 pr-12 py-4 rounded-2xl bg-black border border-border-theme focus:border-white/20 outline-none transition text-sm text-white"
                     onChange={(e) => setFormData({...formData, password: e.target.value})}
                   />
                   <button 
@@ -159,7 +159,7 @@ const AuthPage = () => {
                   <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="relative group">
                     <input 
                       type="date" required
-                      className="w-full p-4 rounded-2xl bg-black border border-zinc-800 focus:border-white/20 outline-none transition text-zinc-500 text-sm uppercase"
+                      className="w-full p-4 rounded-2xl bg-black border border-border-theme focus:border-white/20 outline-none transition text-zinc-500 text-sm uppercase"
                       onChange={(e) => setFormData({...formData, dob: e.target.value})}
                     />
                     <Cake className="absolute right-4 top-4 text-zinc-700 pointer-events-none" size={18} />

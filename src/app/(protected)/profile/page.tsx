@@ -24,13 +24,16 @@ export default async function ProfilePage() {
           creatorStatus: true,
           image: true,
           bio: true,
+          name: true,
+          dob: true,
+          isGhost: true,
           walletBalance: true,
           followersCount: true,
           subscribersCount: true,
           // Fetch actual posts for the creator dashboard
           posts: {
             take: 20,
-            select: { id: true, caption: true, createdAt: true, isPremium: true, price: true },
+            select: { id: true, caption: true, createdAt: true, isPremium: true, isPrivate: true, price: true },
             orderBy: {
               createdAt: 'desc'
             }
@@ -38,7 +41,7 @@ export default async function ProfilePage() {
           // Fetch actual reels for the creator dashboard
           reels: {
             take: 20,
-            select: { id: true, caption: true, createdAt: true, isPremium: true, price: true },
+            select: { id: true, caption: true, createdAt: true, isPremium: true, isPrivate: true, price: true },
             orderBy: {
               createdAt: 'desc'
             }
@@ -58,7 +61,7 @@ export default async function ProfilePage() {
           },
           // Maintain counts for the header stats
           _count: {
-            select: { posts: true, reels: true, followers: true }
+            select: { posts: true, reels: true, followers: true, follows: true }
           }
         }
       }

@@ -166,3 +166,126 @@ export async function purchaseContent(userId: string, contentId: string, type: '
   }
 }
 
+export async function togglePostLike(userId: string, postId: string) {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { isGhost: true } });
+    if (user?.isGhost) {
+      return { success: false, error: "Ghost accounts cannot like posts." };
+    }
+
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { isPrivate: true, authorId: true } });
+    if (!post) return { success: false, error: "Post not found" };
+    if (post.isPrivate && post.authorId !== userId) return { success: false, error: "Content is private" };
+
+    const existingLike = await prisma.postLike.findUnique({
+      where: { userId_postId: { userId, postId } }
+    });
+
+    if (existingLike) {
+      await prisma.postLike.delete({
+        where: { id: existingLike.id }
+      });
+      return { success: true, isLiked: false };
+    } else {
+      await prisma.postLike.create({
+        data: { userId, postId }
+      });
+      return { success: true, isLiked: true };
+    }
+  } catch (error) {
+    console.error("Toggle like error:", error);
+    return { success: false, error: "Failed to toggle like." };
+  }
+}
+
+export async function addPostComment(userId: string, postId: string, text: string) {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { isGhost: true } });
+    if (user?.isGhost) {
+      return { success: false, error: "Ghost accounts cannot comment on posts." };
+    }
+
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { isPrivate: true, authorId: true } });
+    if (!post) return { success: false, error: "Post not found" };
+    if (post.isPrivate && post.authorId !== userId) return { success: false, error: "Content is private" };
+
+    const comment = await prisma.postComment.create({
+      data: { userId, postId, text },
+      include: { user: { select: { username: true, image: true } } }
+    });
+    return { success: true, comment };
+  } catch (error) {
+    console.error("Add comment error:", error);
+    return { success: false, error: "Failed to add comment." };
+  }
+}
+
+export async function checkUsernameAvailability(username: string) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { username: username.toLowerCase() }
+    });
+    return { available: !user };
+  } catch (error) {
+    return { available: false };
+  }
+}
+
+export async function updateUserProfile(userId: string, data: {
+  name?: string;
+  username?: string;
+  bio?: string;
+  dob?: Date;
+  image?: string;
+  isGhost?: boolean;
+}) {
+  try {
+    const updateData: any = { ...data };
+    if (updateData.username) {
+        updateData.username = updateData.username.toLowerCase();
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: updateData
+    });
+
+    revalidatePath("/profile");
+    revalidatePath("/feed");
+    return { success: true, user };
+  } catch (error: any) {
+    console.error("Update profile error:", error);
+    if (error.code === 'P2002') {
+       return { success: false, error: "Username is already taken." };
+    }
+    return { success: false, error: "Failed to update profile." };
+  }
+}
+
+export async function toggleContentVisibility(userId: string, contentId: string, contentType: 'post' | 'reel', isPrivate: boolean) {
+  try {
+    console.log("Toggling visibility:", { userId, contentId, contentType, isPrivate });
+    if (contentType === 'post') {
+      const post = await prisma.post.findFirst({ where: { id: contentId } });
+      if (!post || post.authorId !== userId) return { success: false, error: "Unauthorized" };
+      await prisma.post.update({
+        where: { id: contentId },
+        data: { isPrivate }
+      });
+    } else {
+      const reel = await prisma.reel.findFirst({ where: { id: contentId } });
+      if (!reel || reel.authorId !== userId) return { success: false, error: "Unauthorized" };
+      await prisma.reel.update({
+        where: { id: contentId },
+        data: { isPrivate }
+      });
+    }
+
+    revalidatePath("/profile");
+    revalidatePath("/feed");
+    return { success: true };
+  } catch (error) {
+    console.error("Toggle visibility error:", error);
+    return { success: false, error: "Failed to update visibility" };
+  }
+}

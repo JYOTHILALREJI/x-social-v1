@@ -51,7 +51,7 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-8 pb-12">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-950 p-8 rounded-3xl border border-zinc-900 shadow-2xl overflow-hidden relative">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-zinc-950 p-8 rounded-3xl border border-border-theme shadow-2xl overflow-hidden relative">
         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none text-emerald-500">
             <Settings size={200} />
         </div>
@@ -82,7 +82,7 @@ export default function AdminSettingsPage() {
                         key={t.id}
                         onClick={() => setActiveTab(t.id)}
                         className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold transition-all
-                            ${activeTab === t.id ? 'bg-zinc-900 text-white border border-zinc-800 shadow-xl' : 'text-zinc-500 hover:text-zinc-300'}`}
+                            ${activeTab === t.id ? 'bg-zinc-900 text-white border border-border-theme shadow-xl' : 'text-zinc-500 hover:text-zinc-300'}`}
                     >
                         <Icon size={18} className={activeTab === t.id ? "text-emerald-500" : ""} />
                         {t.label}
@@ -99,7 +99,7 @@ export default function AdminSettingsPage() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="p-10 bg-zinc-950 rounded-3xl border border-zinc-900 space-y-8"
+                    className="p-10 bg-zinc-950 rounded-3xl border border-border-theme space-y-8"
                 >
                     <div className="space-y-6">
                         <div className="flex items-center gap-3 mb-6">
@@ -110,11 +110,11 @@ export default function AdminSettingsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Platform Name</label>
-                                <input type="text" defaultValue="X-Social (Dating & Creators)" className="w-full px-6 py-4 bg-black border border-zinc-900 rounded-2xl focus:outline-none focus:border-emerald-500 transition-all text-white font-medium" />
+                                <input type="text" defaultValue="X-Social (Dating & Creators)" className="w-full px-6 py-4 bg-black border border-border-theme rounded-2xl focus:outline-none focus:border-emerald-500 transition-all text-white font-medium" />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Support Email</label>
-                                <input type="email" defaultValue="admin@xsocial.com" className="w-full px-6 py-4 bg-black border border-zinc-900 rounded-2xl focus:outline-none focus:border-emerald-500 transition-all text-white font-medium" />
+                                <input type="email" defaultValue="admin@xsocial.com" className="w-full px-6 py-4 bg-black border border-border-theme rounded-2xl focus:outline-none focus:border-emerald-500 transition-all text-white font-medium" />
                             </div>
                         </div>
 
@@ -126,21 +126,21 @@ export default function AdminSettingsPage() {
                                     <p className="text-xs text-zinc-500">Temporarily disable all user-facing activities.</p>
                                 </div>
                              </div>
-                             <button className="px-6 py-2 bg-zinc-900 rounded-xl text-xs font-black uppercase tracking-widest border border-zinc-800 hover:border-amber-500 transition-all">Enable</button>
+                             <button className="px-6 py-2 bg-zinc-900 rounded-xl text-xs font-black uppercase tracking-widest border border-border-theme hover:border-amber-500 transition-all">Enable</button>
                         </div>
                     </div>
 
-                    <div className="space-y-6 pt-10 border-t border-zinc-900">
+                    <div className="space-y-6 pt-10 border-t border-border-theme">
                          <div className="flex items-center gap-3 mb-6">
                             <Bell className="text-blue-500" />
                             <h2 className="text-xl font-bold">Registration & Policy</h2>
                         </div>
                         <div className="space-y-4">
-                             <div className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-zinc-900">
+                             <div className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-border-theme">
                                 <p className="font-medium">Public Registrations</p>
                                 <div className="w-12 h-6 bg-emerald-600 rounded-full flex items-center justify-end px-1"><div className="w-4 h-4 bg-white rounded-full" /></div>
                              </div>
-                             <div className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-zinc-900">
+                             <div className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-border-theme">
                                 <p className="font-medium">Email Verification Required</p>
                                 <div className="w-12 h-6 bg-zinc-800 rounded-full flex items-center justify-start px-1"><div className="w-4 h-4 bg-white rounded-full" /></div>
                              </div>
@@ -154,7 +154,7 @@ export default function AdminSettingsPage() {
                     key="payments"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-10 bg-zinc-950 rounded-3xl border border-zinc-900 space-y-8"
+                    className="p-10 bg-zinc-950 rounded-3xl border border-border-theme space-y-8"
                 >
                     <div className="flex items-center gap-3 mb-10">
                         <CreditCard className="text-purple-500" />
@@ -168,13 +168,13 @@ export default function AdminSettingsPage() {
                                 type="number" 
                                 value={fee} 
                                 onChange={(e) => setFee(Number(e.target.value))}
-                                className="w-full px-6 py-4 bg-black border border-zinc-900 rounded-2xl focus:outline-none focus:border-purple-500 transition-all text-white font-black text-2xl" 
+                                className="w-full px-6 py-4 bg-black border border-border-theme rounded-2xl focus:outline-none focus:border-purple-500 transition-all text-white font-black text-2xl" 
                             />
                             <p className="text-[10px] text-zinc-500 italic ml-1">The percentage taken from every purchase or subscription.</p>
                         </div>
                         <div className="space-y-4">
                             <p className="text-xs font-black uppercase text-zinc-500 tracking-widest">Minimum Payout ($)</p>
-                            <input type="number" defaultValue="50" className="w-full px-6 py-4 bg-black border border-zinc-900 rounded-2xl focus:outline-none focus:border-purple-500 transition-all text-white font-black text-2xl" />
+                            <input type="number" defaultValue="50" className="w-full px-6 py-4 bg-black border border-border-theme rounded-2xl focus:outline-none focus:border-purple-500 transition-all text-white font-black text-2xl" />
                         </div>
                     </div>
 
@@ -185,7 +185,7 @@ export default function AdminSettingsPage() {
                                 <span className="font-bold">Stripe Connect</span>
                                 <CheckCircle2 className="text-purple-500" size={20} />
                              </div>
-                             <div className="p-4 bg-black border border-zinc-800 rounded-2xl flex-1 flex items-center justify-between opacity-50 grayscale hover:grayscale-0 cursor-pointer transition-all">
+                             <div className="p-4 bg-black border border-border-theme rounded-2xl flex-1 flex items-center justify-between opacity-50 grayscale hover:grayscale-0 cursor-pointer transition-all">
                                 <span className="font-bold">PayPal Business</span>
                              </div>
                         </div>

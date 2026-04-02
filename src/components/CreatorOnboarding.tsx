@@ -48,7 +48,7 @@ export default function CreatorOnboarding({ isOpen, onClose }: CreatorOnboarding
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
-      <div className="bg-zinc-950 border border-zinc-800 w-full max-w-xl rounded-[2.5rem] p-8 relative max-h-[90vh] overflow-y-auto">
+      <div className="bg-zinc-950 border border-border-theme w-full max-w-xl rounded-[2.5rem] p-8 relative max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute right-6 top-6 text-zinc-500 hover:text-white"><X size={24} /></button>
 
         {step === 1 ? (
@@ -69,7 +69,7 @@ export default function CreatorOnboarding({ isOpen, onClose }: CreatorOnboarding
                     <button
                       key={cat} type="button"
                       onClick={() => setSelectedCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])}
-                      className={`py-2 px-4 rounded-xl text-xs font-bold border transition-all ${selectedCategories.includes(cat) ? "bg-purple-500 border-purple-400 text-white" : "bg-zinc-900 border-zinc-800 text-zinc-400"}`}
+                      className={`py-2 px-4 rounded-xl text-xs font-bold border transition-all ${selectedCategories.includes(cat) ? "bg-purple-500 border-purple-400 text-white" : "bg-zinc-900 border-border-theme text-zinc-400"}`}
                     >
                       {cat}
                     </button>
@@ -78,12 +78,12 @@ export default function CreatorOnboarding({ isOpen, onClose }: CreatorOnboarding
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div onClick={() => idInputRef.current?.click()} className={`p-4 rounded-2xl border-2 border-dashed cursor-pointer aspect-video flex flex-col items-center justify-center transition-all ${files.id ? 'border-purple-500 bg-purple-500/5' : 'border-zinc-800 bg-zinc-900 hover:border-zinc-600'}`}>
+                <div onClick={() => idInputRef.current?.click()} className={`p-4 rounded-2xl border-2 border-dashed cursor-pointer aspect-video flex flex-col items-center justify-center transition-all ${files.id ? 'border-purple-500 bg-purple-500/5' : 'border-border-theme bg-zinc-900 hover:border-border-theme'}`}>
                   <Upload className={files.id ? "text-purple-500" : "text-zinc-500"} size={20} />
                   <span className="text-[10px] text-zinc-400 mt-2 uppercase font-bold text-center">{files.id ? files.id.name : "Upload ID"}</span>
                 </div>
 
-                <div onClick={() => selfieInputRef.current?.click()} className={`p-4 rounded-2xl border-2 border-dashed cursor-pointer aspect-video flex flex-col items-center justify-center transition-all ${files.selfie ? 'border-purple-500 bg-purple-500/5' : 'border-zinc-800 bg-zinc-900 hover:border-zinc-600'}`}>
+                <div onClick={() => selfieInputRef.current?.click()} className={`p-4 rounded-2xl border-2 border-dashed cursor-pointer aspect-video flex flex-col items-center justify-center transition-all ${files.selfie ? 'border-purple-500 bg-purple-500/5' : 'border-border-theme bg-zinc-900 hover:border-border-theme'}`}>
                   <Camera className={files.selfie ? "text-purple-500" : "text-zinc-500"} size={20} />
                   <span className="text-[10px] text-zinc-400 mt-2 uppercase font-bold text-center">{files.selfie ? files.selfie.name : "Verification Photo"}</span>
                 </div>

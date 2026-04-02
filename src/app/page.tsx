@@ -82,7 +82,7 @@ const LandingPage = () => {
           </p>
         </motion.div>
         <motion.div 
-          className="bg-zinc-900 aspect-video rounded-3xl border border-zinc-800 shadow-2xl overflow-hidden group"
+          className="bg-zinc-900 aspect-video rounded-3xl border border-border-theme shadow-2xl overflow-hidden group"
           {...fadeIn}
           transition={{ delay: 0.3 }}
         >
@@ -104,7 +104,7 @@ const LandingPage = () => {
               key={idx}
               {...fadeIn}
               transition={{ delay: idx * 0.1 }}
-              className="p-8 rounded-3xl bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 hover:border-[var(--primary)] transition-all hover:-translate-y-2"
+              className="p-8 rounded-3xl bg-zinc-900/50 backdrop-blur-sm border border-border-theme hover:border-[var(--primary)] transition-all hover:-translate-y-2"
             >
               <div className="text-[var(--accent)] mb-4">{item.icon}</div>
               <h3 className="text-xl font-bold mb-2 text-white">{item.title}</h3>
@@ -125,7 +125,7 @@ const LandingPage = () => {
       </section>
 
       {/* Footer Branding */}
-      <footer className="py-10 border-t border-zinc-900 text-center">
+      <footer className="py-10 border-t border-border-theme text-center">
         <p className="text-zinc-600 text-xs tracking-widest uppercase">© 2024 X-SOCIAL - Premium Creators Network</p>
       </footer>
     </div>

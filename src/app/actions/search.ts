@@ -9,6 +9,7 @@ export async function searchUsers(query: string, currentUserId: string) {
     where: {
       AND: [
         { id: { not: currentUserId } }, // Don't show the logged-in user
+        { isGhost: false },
         {
           OR: [
             { username: { contains: query, mode: 'insensitive' } },
