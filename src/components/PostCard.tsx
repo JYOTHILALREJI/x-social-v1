@@ -2,6 +2,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { Send, Lock, Crown, Loader2 } from 'lucide-react';
+import Link from 'next/link';
 import { purchaseContent, togglePostLike } from '@/app/actions/user-actions';
 import { useRouter } from 'next/navigation';
 import PurchaseConfirmationModal from './PurchaseConfirmationModal';
@@ -134,30 +135,35 @@ const PostCard = ({ post, isSubscribed = false, currentUserId, currentUserBalanc
     <article className="snap-start w-full bg-card-bg/20 backdrop-blur-md rounded-[2.5rem] border border-border-theme overflow-hidden transition-all duration-500 hover:border-border-theme text-foreground">
       <div className="p-8 md:p-10">
         <div className="flex items-center gap-4 mb-8">
-          <div className="w-12 h-12 rounded-full bg-card-bg overflow-hidden relative border border-border-theme">
-            <Image 
-              src={post.author.image || "/default_user_profile/default-avatar.png"} 
-              alt={post.author.username} 
-              fill 
-              className="object-cover" 
-            />
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="font-black italic uppercase tracking-tighter text-foreground text-lg leading-tight">
-                {post.author.name || post.author.username}
-              </span>
-              <UserStatusDot 
-                lastSeen={post.author.lastSeen} 
-                isActivityStatusEnabled={post.author.isActivityStatusEnabled} 
+          <Link
+            href={`/profile/${post.authorId}`}
+            className="flex items-center gap-4 group"
+          >
+            <div className="w-12 h-12 rounded-full bg-card-bg overflow-hidden relative border border-border-theme group-hover:border-purple-500/50 transition-colors">
+              <Image 
+                src={post.author.image || "/default_user_profile/default-avatar.png"} 
+                alt={post.author.username} 
+                fill 
+                className="object-cover" 
               />
             </div>
-            {post.author.name && (
-              <span className="text-[10px] font-bold text-muted-foreground lowercase opacity-60">
-                @{post.author.username}
-              </span>
-            )}
-          </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="font-black italic uppercase tracking-tighter text-foreground text-lg leading-tight group-hover:text-purple-400 transition-colors">
+                  {post.author.name || post.author.username}
+                </span>
+                <UserStatusDot 
+                  lastSeen={post.author.lastSeen} 
+                  isActivityStatusEnabled={post.author.isActivityStatusEnabled} 
+                />
+              </div>
+              {post.author.name && (
+                <span className="text-[10px] font-bold text-muted-foreground lowercase opacity-60">
+                  @{post.author.username}
+                </span>
+              )}
+            </div>
+          </Link>
           {post.isPrivate && (
             <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-card-bg border border-border-theme rounded-full">
               <Lock size={12} className="text-muted-foreground" />

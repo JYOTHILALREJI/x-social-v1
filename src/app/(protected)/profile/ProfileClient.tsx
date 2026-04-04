@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { 
-  Settings, PlusCircle, Grid, Play, Loader2, Plus, User as UserIcon, EyeOff, MoreVertical, Edit2, Trash2, Crown, Clock, Wallet, Heart, Star 
+  Settings, PlusCircle, Grid, Play, Loader2, Plus, User as UserIcon, Eye, EyeOff, MoreVertical, Edit2, Trash2, Crown, Clock, Wallet, Heart, Star 
 } from 'lucide-react';
 import CreatorOnboarding from "@/components/CreatorOnboarding";
 import CreateContentModal from "@/components/CreateContentModal";
@@ -12,7 +12,7 @@ import EditContentModal from "@/components/EditContentModal";
 import DeleteConfirmationModal from "@/components/DeleteConfirmationModal";
 import UserSettings from "@/components/UserSettings";
 import CreatorDashboard from "@/components/CreatorDashboard";
-import { addWalletBalance } from "@/app/actions/user-actions";
+import { addWalletBalance, toggleContentVisibility } from "@/app/actions/user-actions";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, ChevronRight, CheckCircle2 } from "lucide-react";
 import EditProfileOverlay from "@/components/EditProfileOverlay";
@@ -86,6 +86,17 @@ const ProfileClient = ({ user, platformFee }: ProfileClientProps) => {
         item.id === id ? { ...item, isPrivate } : item
       )
     }));
+  };
+
+  const handleActionToggleVisibility = async (id: string, type: 'post' | 'reel', currentPrivateStatus: boolean) => {
+    const newPrivateStatus = !currentPrivateStatus;
+    const res = await toggleContentVisibility(userData.id, id, type, newPrivateStatus);
+    if (res.success) {
+      handleToggleVisibility(id, type, newPrivateStatus);
+      setActiveMenuId(null);
+    } else {
+      alert(res.error || "Failed to update visibility");
+    }
   };
 
   const handleContentUpdate = (id: string, caption: string) => {
@@ -355,6 +366,20 @@ const ProfileClient = ({ user, platformFee }: ProfileClientProps) => {
                                   <Edit2 size={14} className="text-blue-400" /> Edit
                                 </button>
                                 <button 
+                                  onClick={() => handleActionToggleVisibility(post.id, 'post', post.isPrivate)}
+                                  className="flex items-center gap-2 px-3 py-2 hover:bg-white/5 rounded-xl text-[10px] font-black uppercase text-foreground transition-all text-left"
+                                >
+                                  {post.isPrivate ? (
+                                    <>
+                                      <Eye size={14} className="text-emerald-400" /> Show
+                                    </>
+                                  ) : (
+                                    <>
+                                      <EyeOff size={14} className="text-amber-400" /> Hide
+                                    </>
+                                  )}
+                                </button>
+                                <button 
                                   onClick={() => {
                                     setSelectedItem(post);
                                     setSelectedType('post');
@@ -429,6 +454,20 @@ const ProfileClient = ({ user, platformFee }: ProfileClientProps) => {
                                   className="flex items-center gap-2 px-3 py-2 hover:bg-white/5 rounded-xl text-[10px] font-black uppercase text-foreground transition-all text-left"
                                 >
                                   <Edit2 size={14} className="text-blue-400" /> Edit
+                                </button>
+                                <button 
+                                  onClick={() => handleActionToggleVisibility(reel.id, 'reel', reel.isPrivate)}
+                                  className="flex items-center gap-2 px-3 py-2 hover:bg-white/5 rounded-xl text-[10px] font-black uppercase text-foreground transition-all text-left"
+                                >
+                                  {reel.isPrivate ? (
+                                    <>
+                                      <Eye size={14} className="text-emerald-400" /> Show
+                                    </>
+                                  ) : (
+                                    <>
+                                      <EyeOff size={14} className="text-amber-400" /> Hide
+                                    </>
+                                  )}
                                 </button>
                                 <button 
                                   onClick={() => {

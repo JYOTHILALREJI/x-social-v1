@@ -59,6 +59,9 @@ model User {
   stories                 Story[]
   storyViews              StoryMediaView[]
   interests               UserInterest[]
+  conversations1          Conversation[]   @relation("User1Conversations")
+  conversations2          Conversation[]   @relation("User2Conversations")
+  messages                Message[]
 }
 
 model Block {
@@ -346,4 +349,30 @@ enum MatchStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+model Conversation {
+  id              String    @id @default(cuid())
+  user1Id         String
+  user2Id         String
+  user1           User      @relation("User1Conversations", fields: [user1Id], references: [id])
+  user2           User      @relation("User2Conversations", fields: [user2Id], references: [id])
+  status          String    @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  lastMessageAt   DateTime  @default(now())
+  messages        Message[]
+
+  @@unique([user1Id, user2Id])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  text           String?
+  type           String       @default("TEXT") // TEXT, VOICE, MEDIA
+  mediaUrl       String?
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
 }

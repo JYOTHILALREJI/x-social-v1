@@ -10,13 +10,16 @@ import PurchaseConfirmationModal from '@/components/PurchaseConfirmationModal';
 import BlockConfirmationModal from '@/components/BlockConfirmationModal';
 import UserStatusDot from '@/components/UserStatusDot';
 import { blockUser } from '@/app/actions/block';
-import { MoreHorizontal, UserX, Flag, Share2, UserMinus } from 'lucide-react';
+import { MoreHorizontal, UserX, Flag, Share2, UserMinus, MessageCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { requestConversation } from '@/app/actions/message-actions';
 
 interface PublicProfileClientProps {
   currentUserId: string;
   currentUserBalance: number;
   currentIsGhost: boolean;
+  currentUserRole?: string;
   profile: any;
   isInitialFollowing: boolean;
   initialSubscriptionTier: number;
@@ -28,6 +31,7 @@ export default function PublicProfileClient({
   currentUserId, 
   currentUserBalance,
   currentIsGhost,
+  currentUserRole,
   profile, 
   isInitialFollowing, 
   initialSubscriptionTier,
@@ -49,6 +53,7 @@ export default function PublicProfileClient({
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
   const [blocking, setBlocking] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState(false);
 
   type PendingTransaction = {
     type: 'subscribe' | 'post' | 'reel';
@@ -185,6 +190,17 @@ export default function PublicProfileClient({
     } else {
       alert(res.error || "Failed to block user");
       setBlocking(false);
+    }
+  };
+
+  const handleMessageClick = async () => {
+    setLoadingMessage(true);
+    const res = await requestConversation(currentUserId, profile.id);
+    if (res.success) {
+      router.push('/messages');
+    } else {
+      alert("Failed to initialize conversation.");
+      setLoadingMessage(false);
     }
   };
 
@@ -326,6 +342,17 @@ export default function PublicProfileClient({
                   "Follow"
                 )}
               </button>
+              {/* Message button for Fans visiting Creators, or Creators visiting users */}
+              {currentUserId !== profile.id && (isCreator || currentUserRole === 'CREATOR') && (
+                <button
+                  onClick={handleMessageClick}
+                  disabled={loadingMessage}
+                  className="flex-1 md:flex-none px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-[10px] flex items-center justify-center gap-2 bg-zinc-900 border border-border-theme text-white hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  {loadingMessage ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} />}
+                  Message
+                </button>
+              )}
             </div>
           </div>
 
@@ -614,7 +641,7 @@ export default function PublicProfileClient({
                             duration={profile.creatorProfile?.tier1Duration || 30}
                             icon={<Heart size={20} className="text-white" />}
                             themeColor="#CD7F32"
-                            features={["Access to all Premium Posts", "Direct Messaging", "Loyalty Badge"]}
+                            features={["Access to all Premium Posts", "Text Messaging Access", "Loyalty Badge"]}
                             onSelect={(tier: 1, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Bronze Membership' })}
                             disabled={subscribing}
                             currentTier={subscriptionTier}
@@ -627,7 +654,7 @@ export default function PublicProfileClient({
                             duration={profile.creatorProfile?.tier2Duration || 30}
                             icon={<Star size={20} className="text-white" />}
                             themeColor="#C0C0C0"
-                            features={["Tier 1 Access", "Priority Support", "HD Content Unlock"]}
+                            features={["Bronze Access", "Voice Messaging Access", "HD Content Unlock"]}
                             onSelect={(tier: 2, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Silver Membership' })}
                             disabled={subscribing}
                             currentTier={subscriptionTier}
@@ -641,7 +668,7 @@ export default function PublicProfileClient({
                             duration={profile.creatorProfile?.tier3Duration || 30}
                             icon={<Crown size={20} className="text-white" />}
                             themeColor="#FFD700"
-                            features={["All Previous Access", "Private Video Request", "Physical Gift Eligibility"]}
+                            features={["Silver Access", "Camera & Media Messaging", "Private Video Request"]}
                             onSelect={(tier: 3, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Gold VIP Membership' })}
                             disabled={subscribing}
                             currentTier={subscriptionTier}
@@ -705,7 +732,9 @@ export default function PublicProfileClient({
 }
 
 const SubTierCard = ({ tier, title, price, duration, icon, themeColor, features, onSelect, disabled, currentTier, highlight }: any) => {
-    const isOwned = currentTier >= tier;
+    const isOwned = currentTier === tier;
+    const isUpgrade = tier > currentTier;
+    const isDowngrade = tier < currentTier && currentTier > 0;
 
     const durationLabel = duration > 0 && duration % 30 === 0 
         ? `${duration / 30} ${duration / 30 === 1 ? 'month' : 'months'}`
@@ -740,11 +769,11 @@ const SubTierCard = ({ tier, title, price, duration, icon, themeColor, features,
 
             <button 
                 onClick={() => onSelect(tier, price)}
-                disabled={disabled || isOwned}
-                className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isOwned ? 'bg-emerald-500/20 text-emerald-500 cursor-default' : 'text-zinc-900 hover:scale-[1.02]'}`}
+                disabled={disabled}
+                className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isOwned ? 'bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30' : 'text-zinc-900 hover:scale-[1.02]'}`}
                 style={{ backgroundColor: !isOwned ? themeColor : undefined }}
             >
-                {isOwned ? "Already Owned" : "Select Plan"}
+                {isOwned ? "Extend Subscription" : isUpgrade ? (currentTier > 0 ? "Upgrade Plan" : "Select Plan") : isDowngrade ? "Downgrade & Extend" : "Select Plan"}
             </button>
         </div>
     );

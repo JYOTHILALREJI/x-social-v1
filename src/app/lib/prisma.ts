@@ -12,10 +12,10 @@ const createPrismaClient = () => {
   
   return new PrismaClient({ 
     adapter,
-    // Add datasource for Prisma 7 if needed, but usually config handles it.
   });
 };
 
-export const prisma = globalForPrisma.prisma || createPrismaClient();
+// Force fresh instance once to resolve "findMany" undefined error
+export const prisma = createPrismaClient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== "production") (global as any).prisma = prisma;

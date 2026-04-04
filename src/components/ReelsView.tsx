@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import Link from 'next/link';
 import ReelComments from './ReelComments';
 import { toggleReelLike, toggleReelUpvote, getReelStats } from '@/app/actions/reel-actions';
 import { purchaseContent } from '@/app/actions/user-actions';
@@ -21,6 +22,7 @@ interface ReelData {
   isUnlocked?: boolean;
   isPremium?: boolean;
   price?: number | null;
+  authorId: string;
   authorName?: string | null;
   authorUsername: string;
   authorImage?: string | null;
@@ -316,18 +318,24 @@ const ReelsView = ({ initialData, currentUserId, currentUserBalance }: ReelsView
                 <div 
                   className="flex-shrink-0 bg-black/90 backdrop-blur-xl px-4 py-3 flex items-center gap-3 border-t border-white/5"
                 >
-                  <div className="w-10 h-10 rounded-full border-2 border-purple-500/40 overflow-hidden relative shadow-lg flex-shrink-0">
-                    <Image src={reel.authorImage || "/default_user_profile/default-avatar.png"} alt={reel.authorUsername} fill className="object-cover" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-white text-sm font-black italic tracking-tighter leading-none uppercase truncate">
-                      {reel.authorName || reel.authorUsername}
-                    </span>
-                    <span className="text-white/50 text-[10px] font-bold uppercase tracking-widest lowercase truncate">
-                      @{reel.authorUsername}
-                    </span>
-                  </div>
-                  <div className="ml-auto flex items-center gap-1.5 text-white/30 flex-shrink-0">
+                  <Link
+                    href={`/profile/${reel.authorId}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-3 flex-1 min-w-0 group"
+                  >
+                    <div className="w-10 h-10 rounded-full border-2 border-purple-500/40 overflow-hidden relative shadow-lg flex-shrink-0 group-hover:border-purple-400 transition-colors">
+                      <Image src={reel.authorImage || "/default_user_profile/default-avatar.png"} alt={reel.authorUsername} fill className="object-cover" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-white text-sm font-black italic tracking-tighter leading-none uppercase truncate group-hover:text-purple-400 transition-colors">
+                        {reel.authorName || reel.authorUsername}
+                      </span>
+                      <span className="text-white/50 text-[10px] font-bold uppercase tracking-widest lowercase truncate">
+                        @{reel.authorUsername}
+                      </span>
+                    </div>
+                  </Link>
+                  <div className="flex items-center gap-1.5 text-white/30 flex-shrink-0">
                     <Music size={11} className="animate-pulse" />
                     <span className="text-[9px] font-black uppercase tracking-[0.15em] max-w-[80px] truncate">
                       Original
@@ -459,15 +467,19 @@ const ReelsView = ({ initialData, currentUserId, currentUserBalance }: ReelsView
 
                    {/* Creator Details */}
                    <div className="mt-10 flex flex-col items-end gap-6">
-                      <div className="flex gap-4 items-center">
+                      <Link
+                        href={`/profile/${reel.authorId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex gap-4 items-center group"
+                      >
                          <div className="flex flex-col items-end text-right">
-                           <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase leading-none mb-1">{reel.authorName || reel.authorUsername}</h2>
+                           <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase leading-none mb-1 group-hover:text-purple-400 transition-colors">{reel.authorName || reel.authorUsername}</h2>
                            <span className="text-purple-500 text-[8px] font-black uppercase tracking-widest italic opacity-60">@{reel.authorUsername}</span>
                          </div>
-                         <div className="w-14 h-14 rounded-2xl border border-purple-500/30 overflow-hidden relative shadow-2xl">
+                         <div className="w-14 h-14 rounded-2xl border border-purple-500/30 overflow-hidden relative shadow-2xl group-hover:border-purple-400 transition-colors">
                            <Image src={reel.authorImage || "/default_user_profile/default-avatar.png"} alt={reel.authorUsername} fill className="object-cover" />
                         </div>
-                      </div>
+                      </Link>
 
                       <div className="w-full flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/5">
                         <div className="flex items-center gap-3 text-white/30">

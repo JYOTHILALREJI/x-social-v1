@@ -108,28 +108,10 @@ export default async function ProfilePage() {
     });
   }
 
-  // 4. Calculate wallet balance: walletBalance(DB) - (20% of regular Revenue)
-  // This ensures we keep the initial state and any adjustments, but apply the fee to earnings.
-  const earningsSum = await prisma.revenue.aggregate({
-    where: {
-      creatorId: session.user.id,
-      type: { in: ["SUBSCRIPTION", "POST_PURCHASE", "REEL_PURCHASE"] }
-    },
-    _sum: { amount: true }
-  });
-
-  const fee = settings?.platformFee ?? 20;
-  const grossEarnings = earningsSum._sum.amount || 0;
-  const taxAmount = Math.floor(grossEarnings * (fee / 100));
-  
-  const displayBalance = Math.max(0, session.user.walletBalance - taxAmount);
-
-  // 2. Pass the user data (now including posts and reels) to the client component
+  // The walletBalance in DB is already net (platform fee is deducted at transaction time
+  // in purchaseContent and subscribeToCreator). No further deduction needed here.
   return <ProfileClient 
-    user={{
-      ...session.user,
-      walletBalance: displayBalance
-    }} 
+    user={session.user} 
     platformFee={settings?.platformFee ?? 20} 
   />;
 

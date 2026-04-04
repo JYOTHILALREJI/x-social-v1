@@ -22,6 +22,7 @@ import { Line } from 'react-chartjs-2';
 import Image from 'next/image';
 import Link from 'next/link';
 import { toggleContentVisibility } from '@/app/actions/user-actions';
+import FollowersPanel from './FollowersPanel';
 
 ChartJS.register(
   CategoryScale,
@@ -66,6 +67,13 @@ interface CreatorDashboardProps {
 const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: CreatorDashboardProps) => {
   const [timeFilter, setTimeFilter] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [mounted, setMounted] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelTab, setPanelTab] = useState<'followers' | 'subscribers'>('followers');
+
+  const openPanel = (tab: 'followers' | 'subscribers') => {
+    setPanelTab(tab);
+    setPanelOpen(true);
+  };
 
   React.useEffect(() => {
     setMounted(true);
@@ -73,7 +81,9 @@ const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: Creato
 
   // Calculate stats with platform fee deduction
   const totalEarnings = useMemo(() => {
-    const gross = user.revenues.reduce((acc, rev) => acc + rev.amount, 0);
+    const gross = user.revenues
+      .filter(rev => rev.type !== 'WALLET_TOPUP')
+      .reduce((acc, rev) => acc + rev.amount, 0);
     return Math.floor(gross * (1 - platformFee / 100));
   }, [user.revenues, platformFee]);
 
@@ -81,6 +91,7 @@ const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: Creato
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const gross = user.revenues
+      .filter(rev => rev.type !== 'WALLET_TOPUP')
       .filter(rev => new Date(rev.createdAt) >= startOfMonth)
       .reduce((acc, rev) => acc + rev.amount, 0);
     return Math.floor(gross * (1 - platformFee / 100));
@@ -94,47 +105,86 @@ const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: Creato
 
   // Chart Data preparation
   const chartData = useMemo(() => {
-    // Generate labels and data based on timeFilter
-    // For now, let's group by the relevant unit
     const labels: string[] = [];
     const points: number[] = [];
 
-    if (timeFilter === 'monthly') {
-      // Last 6 months
+    const earningRevenues = user.revenues.filter(rev => rev.type !== 'WALLET_TOPUP');
+
+    if (timeFilter === 'daily') {
+      // Last 7 days — one bar per day
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleString('default', { weekday: 'short' }));
+
+        const dayEarnings = earningRevenues
+          .filter(rev => {
+            const rd = new Date(rev.createdAt);
+            return (
+              rd.getDate() === d.getDate() &&
+              rd.getMonth() === d.getMonth() &&
+              rd.getFullYear() === d.getFullYear()
+            );
+          })
+          .reduce((acc, rev) => acc + rev.amount, 0);
+
+        points.push(parseFloat((dayEarnings / 100).toFixed(2)));
+      }
+    } else if (timeFilter === 'weekly') {
+      // Last 8 weeks — one bar per week
+      for (let i = 7; i >= 0; i--) {
+        const weekStart = new Date();
+        // Go back i weeks (start of that week = Monday)
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1 - i * 7);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+
+        const label = `W${weekStart.toLocaleString('default', { month: 'short' })} ${weekStart.getDate()}`;
+        labels.push(label);
+
+        const weekEarnings = earningRevenues
+          .filter(rev => {
+            const rd = new Date(rev.createdAt);
+            return rd >= weekStart && rd <= weekEnd;
+          })
+          .reduce((acc, rev) => acc + rev.amount, 0);
+
+        points.push(parseFloat((weekEarnings / 100).toFixed(2)));
+      }
+    } else if (timeFilter === 'monthly') {
+      // Last 6 months — one bar per month
       for (let i = 5; i >= 0; i--) {
         const d = new Date();
+        d.setDate(1);
         d.setMonth(d.getMonth() - i);
-        const monthLabel = d.toLocaleString('default', { month: 'short' });
-        labels.push(monthLabel);
-        
-        const monthEarnings = user.revenues
+        labels.push(d.toLocaleString('default', { month: 'short' }));
+
+        const monthEarnings = earningRevenues
           .filter(rev => {
             const rd = new Date(rev.createdAt);
             return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear();
           })
           .reduce((acc, rev) => acc + rev.amount, 0);
-        points.push(monthEarnings);
+
+        points.push(parseFloat((monthEarnings / 100).toFixed(2)));
       }
-    } else if (timeFilter === 'daily') {
-        // Last 7 days
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          const dayLabel = d.toLocaleString('default', { weekday: 'short' });
-          labels.push(dayLabel);
-          
-          const dayEarnings = user.revenues
-            .filter(rev => {
-              const rd = new Date(rev.createdAt);
-              return rd.getDate() === d.getDate() && rd.getMonth() === d.getMonth();
-            })
-            .reduce((acc, rev) => acc + rev.amount, 0);
-          points.push(dayEarnings);
-        }
-    } else {
-        // Just show what we have for now
-        labels.push("Jan", "Feb", "Mar", "Apr", "May", "Jun");
-        points.push(10, 20, 15, 30, 45, 40); // Placeholder for weekly/yearly for now
+    } else if (timeFilter === 'yearly') {
+      // Last 12 months (rolling year) — one bar per month
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - i);
+        labels.push(d.toLocaleString('default', { month: 'short', year: '2-digit' }));
+
+        const monthEarnings = earningRevenues
+          .filter(rev => {
+            const rd = new Date(rev.createdAt);
+            return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear();
+          })
+          .reduce((acc, rev) => acc + rev.amount, 0);
+
+        points.push(parseFloat((monthEarnings / 100).toFixed(2)));
+      }
     }
 
     return {
@@ -144,7 +194,7 @@ const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: Creato
           fill: true,
           label: 'Revenue ($)',
           data: points,
-          borderColor: 'rgb(168, 85, 247)', // Purple 500
+          borderColor: 'rgb(168, 85, 247)',
           backgroundColor: 'rgba(168, 85, 247, 0.1)',
           tension: 0.4,
           borderWidth: 3,
@@ -160,36 +210,38 @@ const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: Creato
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        display: false,
-      },
+      legend: { display: false },
       tooltip: {
-        backgroundColor: '#18181b', // Zinc 900
-        titleColor: '#a1a1aa', // Zinc 400
+        backgroundColor: '#18181b',
+        titleColor: '#a1a1aa',
         bodyColor: '#fff',
         bodyFont: { weight: 'bold' as const },
         padding: 12,
         cornerRadius: 12,
         displayColors: false,
+        callbacks: {
+          label: (ctx: any) => `$${ctx.parsed.y.toFixed(2)}`,
+        },
       },
     },
     scales: {
       x: {
         grid: { display: false },
-        ticks: { color: '#71717a' }, // Zinc 500
+        ticks: { color: '#71717a' },
       },
       y: {
-        grid: { color: 'rgba(39, 39, 42, 0.5)' }, // Zinc 800
-        ticks: { 
+        grid: { color: 'rgba(39, 39, 42, 0.5)' },
+        ticks: {
           color: '#71717a',
-          callback: (value: any) => `$${value}`
+          callback: (value: any) => `$${Number(value).toFixed(2)}`,
         },
       },
     },
   };
 
   return (
-    <div className="w-full space-y-10 animate-in fade-in duration-700">
+    <React.Fragment>
+      <div className="w-full space-y-10 animate-in fade-in duration-700">
       
       {/* Header with quick stats */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -218,14 +270,16 @@ const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: Creato
           value={(user.followersCount || 0).toLocaleString()} 
           trend="Community" 
           trendUp={true} 
-          icon={<Users className="text-blue-500" />} 
+          icon={<Users className="text-blue-500" />}
+          onClick={() => openPanel('followers')}
         />
         <StatCard 
           title="Total Subscribers" 
           value={(user.subscribersCount || 0).toLocaleString()} 
           trend="Paying Members" 
           trendUp={true} 
-          icon={<Crown className="text-amber-500" />} 
+          icon={<Crown className="text-amber-500" />}
+          onClick={() => openPanel('subscribers')}
         />
         <StatCard 
           title="Total Earnings" 
@@ -326,13 +380,24 @@ const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: Creato
           </div>
         </div>
       </div>
-    </div>
+      </div>
+
+      <FollowersPanel
+        isOpen={panelOpen}
+        defaultTab={panelTab}
+        creatorId={user.id}
+        onClose={() => setPanelOpen(false)}
+      />
+    </React.Fragment>
   );
 };
 
 // Sub-components
-const StatCard = ({ title, value, trend, trendUp, icon }: any) => (
-  <div className="bg-card-bg border border-border-theme p-8 rounded-[2.5rem] hover:border-border-theme transition-all group overflow-hidden relative">
+const StatCard = ({ title, value, trend, trendUp, icon, onClick }: any) => (
+  <div
+    className={`bg-card-bg border border-border-theme p-8 rounded-[2.5rem] hover:border-border-theme transition-all group overflow-hidden relative ${onClick ? 'cursor-pointer hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/5' : ''}`}
+    onClick={onClick}
+  >
     <div className="absolute -right-4 -top-4 w-24 h-24 bg-card-bg/20 rounded-full group-hover:scale-150 transition-transform duration-700" />
     <div className="flex justify-between items-start mb-6">
       <div className="p-3 bg-background rounded-2xl group-hover:scale-110 transition-transform">{icon}</div>

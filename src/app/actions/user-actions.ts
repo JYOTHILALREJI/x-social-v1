@@ -66,6 +66,22 @@ export async function subscribeToCreator(userId: string, creatorId: string, tier
 
     const expiresAt = new Date(Date.now() + durationInDays * 24 * 60 * 60 * 1000);
 
+    const existingFollow = await prisma.follow.findUnique({
+      where: { 
+          followerId_followingId: { 
+              followerId: userId, 
+              followingId: creatorId 
+          } 
+      }
+    });
+
+    const now = new Date();
+    let newExpiresAt = new Date(now.getTime() + durationInDays * 24 * 60 * 60 * 1000);
+
+    if (existingFollow && existingFollow.expiresAt && existingFollow.expiresAt > now) {
+        newExpiresAt = new Date(existingFollow.expiresAt.getTime() + durationInDays * 24 * 60 * 60 * 1000);
+    }
+
     // Atomic Transaction to update both wallets and the follow record
     await prisma.$transaction([
       // 1. Deduct full amount from user
@@ -91,14 +107,14 @@ export async function subscribeToCreator(userId: string, creatorId: string, tier
         },
         update: { 
             subscriptionTier: tier,
-            expiresAt: expiresAt
+            expiresAt: newExpiresAt
         },
         create: {
             followerId: userId,
             followingId: creatorId,
             subscriptionTier: tier,
             status: "ACCEPTED",
-            expiresAt: expiresAt
+            expiresAt: newExpiresAt
         }
       }),
       // 4. Record Revenue log (Recording Gross amount so analytics still match total sales volume)
@@ -140,6 +156,10 @@ export async function purchaseContent(userId: string, contentId: string, type: '
       contentAuthorId = r?.authorId || "";
     }
 
+    const settings = await prisma.systemSettings.findUnique({ where: { id: "default" } });
+    const fee = settings?.platformFee ?? 20;
+    const creatorNetInCents = Math.floor(amountInCents * (1 - fee / 100));
+
     if (!contentAuthorId) return { success: false, error: "Content creator not found." };
 
     // Atomic Transaction to update both wallets and the follow record
@@ -149,11 +169,11 @@ export async function purchaseContent(userId: string, contentId: string, type: '
         where: { id: userId },
         data: { walletBalance: { decrement: amountInCents } }
       }),
-      // 2. Add full earnings to creator (gross)
+      // 2. Add net earnings to creator (after platform fee)
       prisma.user.update({
         where: { id: contentAuthorId },
         data: { 
-            walletBalance: { increment: amountInCents }
+            walletBalance: { increment: creatorNetInCents }
         }
       }),
       // 3. Create the Purchase record
@@ -331,3 +351,73 @@ export async function toggleContentVisibility(userId: string, contentId: string,
     return { success: false, error: "Failed to update visibility" };
   }
 }
+
+export async function getCreatorFollowers(creatorId: string, skip: number = 0, take: number = 50) {
+  try {
+    const follows = await prisma.follow.findMany({
+      where: { followingId: creatorId, status: "ACCEPTED" },
+      skip,
+      take,
+      orderBy: { follower: { createdAt: 'desc' } },
+      include: {
+        follower: {
+          select: { id: true, username: true, name: true, image: true, role: true }
+        }
+      }
+    });
+    const total = await prisma.follow.count({ where: { followingId: creatorId, status: "ACCEPTED" } });
+    return { success: true, users: follows.map(f => f.follower), total };
+  } catch (error) {
+    console.error("getCreatorFollowers error:", error);
+    return { success: false, users: [], total: 0 };
+  }
+}
+
+export async function getCreatorSubscribers(creatorId: string, skip: number = 0, take: number = 50) {
+  try {
+    const follows = await prisma.follow.findMany({
+      where: {
+        followingId: creatorId,
+        subscriptionTier: { gt: 0 },
+        expiresAt: { gt: new Date() }
+      },
+      skip,
+      take,
+      orderBy: { expiresAt: 'asc' },
+      include: {
+        follower: {
+          select: { id: true, username: true, name: true, image: true, role: true }
+        }
+      }
+    });
+    const total = await prisma.follow.count({
+      where: {
+        followingId: creatorId,
+        subscriptionTier: { gt: 0 },
+        expiresAt: { gt: new Date() }
+      }
+    });
+    return { success: true, users: follows.map(f => f.follower), total };
+  } catch (error) {
+    console.error("getCreatorSubscribers error:", error);
+    return { success: false, users: [], total: 0 };
+  }
+}
+
+export async function sendKiss(fromCreatorId: string, toUserId: string) {
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: toUserId,
+        message: "Your favourite creator sent you a 😘 kiss!",
+        type: "KISS",
+        relatedId: fromCreatorId,
+      }
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("sendKiss error:", error);
+    return { success: false, error: "Failed to send kiss." };
+  }
+}
+

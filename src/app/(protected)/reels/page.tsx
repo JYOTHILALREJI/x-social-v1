@@ -88,6 +88,7 @@ export default async function ReelsPage() {
     return {
       id: r.id,
       url: r.videoUrl,
+      authorId: r.author.id,
       authorName: r.author.name,
       authorUsername: r.author.username,
       authorImage: r.author.image,

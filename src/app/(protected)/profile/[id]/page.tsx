@@ -19,7 +19,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
   const session = await prisma.session.findUnique({
     where: { sessionToken },
     include: {
-      user: { select: { id: true, walletBalance: true, isGhost: true } }
+      user: { select: { id: true, walletBalance: true, isGhost: true, role: true } }
     }
   });
 
@@ -149,6 +149,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
       currentUserId={currentUserId} 
       currentUserBalance={session.user.walletBalance}
       currentIsGhost={session.user.isGhost}
+      currentUserRole={session.user.role}
       profile={{
         ...profile,
         posts,
