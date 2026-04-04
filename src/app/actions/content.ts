@@ -70,3 +70,68 @@ export async function createReel(formData: FormData) {
     return { success: false, error: "Failed to create reel" };
   }
 }
+export async function updatePost(postId: string, caption: string) {
+  try {
+    const post = await prisma.post.update({
+      where: { id: postId },
+      data: { caption }
+    });
+
+    revalidatePath("/profile");
+    revalidatePath("/feed");
+
+    return { success: true, post };
+  } catch (error) {
+    console.error("Error updating post:", error);
+    return { success: false, error: "Failed to update post" };
+  }
+}
+
+export async function deletePost(postId: string) {
+  try {
+    await prisma.post.delete({
+      where: { id: postId }
+    });
+
+    revalidatePath("/profile");
+    revalidatePath("/feed");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting post:", error);
+    return { success: false, error: "Failed to delete post" };
+  }
+}
+
+export async function updateReel(reelId: string, caption: string) {
+  try {
+    const reel = await prisma.reel.update({
+      where: { id: reelId },
+      data: { caption }
+    });
+
+    revalidatePath("/profile");
+    revalidatePath("/reels");
+
+    return { success: true, reel };
+  } catch (error) {
+    console.error("Error updating reel:", error);
+    return { success: false, error: "Failed to update reel" };
+  }
+}
+
+export async function deleteReel(reelId: string) {
+  try {
+    await prisma.reel.delete({
+      where: { id: reelId }
+    });
+
+    revalidatePath("/profile");
+    revalidatePath("/reels");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting reel:", error);
+    return { success: false, error: "Failed to delete reel" };
+  }
+}

@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Play } from 'lucide-react';
 import { toggleFollow } from '@/app/actions/follow';
+import UserStatusDot from './UserStatusDot';
 
 const SuggestedCreators = ({ suggested, currentUserId }: { suggested: any[], currentUserId: string }) => {
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -15,16 +16,16 @@ const SuggestedCreators = ({ suggested, currentUserId }: { suggested: any[], cur
   };
 
   return (
-    <div className="col-span-full py-12 my-8 border-y border-border-theme bg-zinc-950/20 rounded-[3rem] px-8">
+    <div className="col-span-full py-12 my-8 border-y border-border-theme bg-card-bg/20 rounded-[3rem] px-8 transition-colors duration-300">
       <div className="flex items-center justify-between mb-8">
-        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">
+        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-foreground">
           Suggested <span className="text-purple-500">For You</span>
         </h3>
       </div>
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {suggested.map((creator) => (
-          <div key={creator.id} className="relative aspect-[9/16] bg-zinc-900 rounded-3xl overflow-hidden group border border-border-theme">
+          <div key={creator.id} className="relative aspect-[9/16] bg-card-bg rounded-3xl overflow-hidden group border border-border-theme">
             {/* Clickable Area for Profile */}
             <Link href={`/profile/${creator.id}`} className="absolute inset-0 z-10">
               <Image 
@@ -40,9 +41,15 @@ const SuggestedCreators = ({ suggested, currentUserId }: { suggested: any[], cur
                   <Image src={creator.image || "/default_user_profile/default-avatar.png"} alt="" fill className="object-cover" />
                 </div>
                 <div className="flex flex-col min-w-0 pr-2">
-                  <span className="text-[10px] font-black text-white uppercase italic truncate">
-                    {creator.name || creator.username}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-black text-white uppercase italic truncate">
+                      {creator.name || creator.username}
+                    </span>
+                    <UserStatusDot 
+                      lastSeen={creator.lastSeen} 
+                      isActivityStatusEnabled={creator.isActivityStatusEnabled} 
+                    />
+                  </div>
                   {creator.name && (
                     <span className="text-[8px] font-bold text-zinc-500 lowercase opacity-60">
                       @{creator.username}

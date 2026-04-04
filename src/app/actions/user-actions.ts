@@ -45,24 +45,43 @@ export async function subscribeToCreator(userId: string, creatorId: string, tier
       return { success: false, error: "Insufficient wallet balance." };
     }
 
+    const creator = await prisma.user.findUnique({ 
+      where: { id: creatorId },
+      include: { creatorProfile: true }
+    });
+    if (!creator) {
+      return { success: false, error: "Creator not found." };
+    }
+
+    const settings = await prisma.systemSettings.findUnique({ where: { id: "default" } });
+    const fee = settings?.platformFee ?? 20;
+
     const amountInCents = amount; // incoming in cents
+    const creatorNetInCents = Math.floor(amountInCents * (1 - fee / 100));
+
+    let durationInDays = 30;
+    if (tier === 1) durationInDays = creator.creatorProfile?.tier1Duration || 30;
+    else if (tier === 2) durationInDays = creator.creatorProfile?.tier2Duration || 30;
+    else if (tier === 3) durationInDays = creator.creatorProfile?.tier3Duration || 30;
+
+    const expiresAt = new Date(Date.now() + durationInDays * 24 * 60 * 60 * 1000);
 
     // Atomic Transaction to update both wallets and the follow record
     await prisma.$transaction([
-      // 1. Deduct full amount from user (gross)
+      // 1. Deduct full amount from user
       prisma.user.update({
         where: { id: userId },
         data: { walletBalance: { decrement: amountInCents } }
       }),
-      // 2. Add gross earnings to creator
+      // 2. Add net earnings to creator (after platform fee)
       prisma.user.update({
         where: { id: creatorId },
         data: { 
-            walletBalance: { increment: amountInCents },
+            walletBalance: { increment: creatorNetInCents },
             subscribersCount: { increment: 1 }
         }
       }),
-      // 3. Upsert Follow record with subscription tier
+      // 3. Upsert Follow record with subscription tier and dynamic duration
       prisma.follow.upsert({
         where: { 
             followerId_followingId: { 
@@ -72,16 +91,17 @@ export async function subscribeToCreator(userId: string, creatorId: string, tier
         },
         update: { 
             subscriptionTier: tier,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+            expiresAt: expiresAt
         },
         create: {
             followerId: userId,
             followingId: creatorId,
             subscriptionTier: tier,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            status: "ACCEPTED",
+            expiresAt: expiresAt
         }
       }),
-      // 4. Record Revenue log (GROSS)
+      // 4. Record Revenue log (Recording Gross amount so analytics still match total sales volume)
       prisma.revenue.create({
         data: {
           creatorId,
@@ -177,6 +197,17 @@ export async function togglePostLike(userId: string, postId: string) {
     if (!post) return { success: false, error: "Post not found" };
     if (post.isPrivate && post.authorId !== userId) return { success: false, error: "Content is private" };
 
+    // Block logic: Cannot interact if blocked or blocker
+    const block = await prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: userId, blockedId: post.authorId },
+          { blockerId: post.authorId, blockedId: userId }
+        ]
+      }
+    });
+    if (block) return { success: false, error: "Access denied" };
+
     const existingLike = await prisma.postLike.findUnique({
       where: { userId_postId: { userId, postId } }
     });
@@ -208,6 +239,17 @@ export async function addPostComment(userId: string, postId: string, text: strin
     const post = await prisma.post.findUnique({ where: { id: postId }, select: { isPrivate: true, authorId: true } });
     if (!post) return { success: false, error: "Post not found" };
     if (post.isPrivate && post.authorId !== userId) return { success: false, error: "Content is private" };
+
+    // Block logic: Cannot interact if blocked or blocker
+    const block = await prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: userId, blockedId: post.authorId },
+          { blockerId: post.authorId, blockedId: userId }
+        ]
+      }
+    });
+    if (block) return { success: false, error: "Access denied" };
 
     const comment = await prisma.postComment.create({
       data: { userId, postId, text },

@@ -26,11 +26,20 @@ export default async function SettingsPage() {
           role: true,
           isGhost: true,
           creatorStatus: true,
+          twoFactorQuestion: true,
+          loginAlerts: true,
+          isPrivateAccount: true,
+          isActivityStatusEnabled: true,
+          autoplayVideos: true,
+          mutedWords: true,
           creatorProfile: {
             select: {
               tier1Price: true,
+              tier1Duration: true,
               tier2Price: true,
-              tier3Price: true
+              tier2Duration: true,
+              tier3Price: true,
+              tier3Duration: true
             }
           }
         }
@@ -42,10 +51,7 @@ export default async function SettingsPage() {
     redirect("/auth");
   }
 
-  // If they are not a verified creator, redirect them to profile because their settings are embedded there
-  if (session.user.creatorStatus !== 'APPROVED') {
-    redirect("/profile");
-  }
+  // All authenticated users can access settings
 
   return <SettingsClientContainer user={session.user} />;
 }

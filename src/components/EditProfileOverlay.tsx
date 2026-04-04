@@ -142,21 +142,21 @@ export default function EditProfileOverlay({ isOpen, onClose, user, onUpdate }: 
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed inset-y-0 right-0 w-full max-w-xl bg-zinc-950 border-l border-border-theme z-[101] shadow-2xl flex flex-col"
+            className="fixed inset-y-0 right-0 w-full max-w-xl bg-background border-l border-border-theme z-[101] shadow-2xl flex flex-col"
           >
             {/* Header */}
-            <div className="p-8 flex items-center justify-between border-b border-border-theme bg-zinc-950/50 backdrop-blur-xl sticky top-0 z-10">
+            <div className="p-8 flex items-center justify-between border-b border-border-theme bg-background/50 backdrop-blur-xl sticky top-0 z-10">
               <div>
-                <h2 className="text-3xl font-black italic uppercase tracking-tighter text-white">
+                <h2 className="text-3xl font-black italic uppercase tracking-tighter text-foreground">
                   Edit <span className="text-purple-500">Profile</span>
                 </h2>
-                <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mt-1">Refine your digital identity</p>
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mt-1">Refine your digital identity</p>
               </div>
               <button 
                 onClick={onClose}
-                className="p-3 bg-zinc-900 hover:bg-zinc-800 rounded-full border border-border-theme transition-all group"
+                className="p-3 bg-card-bg hover:bg-card-hover rounded-full border border-border-theme transition-all group"
               >
-                <X size={20} className="text-zinc-500 group-hover:text-white group-hover:rotate-90 transition-all duration-300" />
+                <X size={20} className="text-muted-foreground group-hover:text-foreground group-hover:rotate-90 transition-all duration-300" />
               </button>
             </div>
 
@@ -165,23 +165,23 @@ export default function EditProfileOverlay({ isOpen, onClose, user, onUpdate }: 
               
               {/* Profile Picture */}
               <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Profile Aesthetic</label>
-                <div className="flex items-center gap-8 p-6 bg-zinc-900/30 border border-border-theme rounded-[2.5rem]">
+                <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">Profile Aesthetic</label>
+                <div className="flex items-center gap-8 p-6 bg-card-bg/30 border border-border-theme rounded-[2.5rem]">
                   <div 
                     onClick={() => fileInputRef.current?.click()}
                     className="relative group cursor-pointer"
                   >
-                    <div className="w-24 h-24 rounded-full bg-zinc-800 border-2 border-border-theme overflow-hidden relative shadow-lg group-hover:border-purple-600 transition-all">
+                    <div className="w-24 h-24 rounded-full bg-card-bg border-2 border-border-theme overflow-hidden relative shadow-lg group-hover:border-purple-600 transition-all">
                       {formData.image ? (
                         <img src={formData.image} alt="Avatar" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground/40">
                           <User size={40} />
                         </div>
                       )}
                       {/* Hover Overlay */}
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                         <Camera size={20} className="text-white" />
+                         <Camera size={20} className="text-foreground" />
                       </div>
                     </div>
                   </div>
@@ -199,7 +199,7 @@ export default function EditProfileOverlay({ isOpen, onClose, user, onUpdate }: 
                        <button 
                          type="button"
                          onClick={() => fileInputRef.current?.click()}
-                         className="w-full py-3 bg-zinc-900 text-[10px] font-black uppercase rounded-xl border border-border-theme hover:bg-zinc-800 transition-all text-zinc-300 flex items-center justify-center gap-2"
+                         className="w-full py-3 bg-card-bg text-[10px] font-black uppercase rounded-xl border border-border-theme hover:bg-card-hover transition-all text-foreground flex items-center justify-center gap-2"
                        >
                          <Camera size={14} className="text-purple-500" />
                          Select Image File
@@ -234,18 +234,18 @@ export default function EditProfileOverlay({ isOpen, onClose, user, onUpdate }: 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Username */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">
+                  <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">
                     {isCreator ? "Creator Username" : "Username"}
                   </label>
                   <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50">
                       <AtSign size={16} />
                     </div>
                     <input 
                       type="text" 
                       value={formData.username}
                       onChange={(e) => setFormData({...formData, username: e.target.value.replace(/\s+/g, '').toLowerCase()})}
-                      className={`w-full pl-12 pr-12 py-4 bg-zinc-900/50 border rounded-2xl text-sm font-bold text-white focus:outline-none transition-all ${
+                      className={`w-full pl-12 pr-12 py-4 bg-background/50 border rounded-2xl text-sm font-bold text-foreground focus:outline-none transition-all ${
                         usernameStatus === 'taken' ? 'border-red-500' : 
                         usernameStatus === 'available' ? 'border-emerald-500' : 'border-border-theme focus:border-purple-600'
                       }`}
@@ -263,18 +263,18 @@ export default function EditProfileOverlay({ isOpen, onClose, user, onUpdate }: 
 
                 {/* Full Name */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">
+                  <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">
                     {isCreator ? "Creator Name" : "Legal Name"}
                   </label>
                   <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50">
                       <User size={16} />
                     </div>
                     <input 
                       type="text" 
                       value={formData.name}
                       onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="w-full pl-12 pr-4 py-4 bg-zinc-900/50 border border-border-theme rounded-2xl text-sm font-bold text-white focus:outline-none focus:border-purple-600 transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-background/50 border border-border-theme rounded-2xl text-sm font-bold text-foreground focus:outline-none focus:border-purple-600 transition-all"
                       placeholder="e.g. John Doe"
                     />
                   </div>
@@ -283,16 +283,16 @@ export default function EditProfileOverlay({ isOpen, onClose, user, onUpdate }: 
 
               {/* Bio Section */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Biography</label>
+                <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">Biography</label>
                 <div className="relative">
-                  <div className="absolute left-4 top-5 text-zinc-600">
+                  <div className="absolute left-4 top-5 text-muted-foreground/50">
                     <FileText size={16} />
                   </div>
                   <textarea 
                     value={formData.bio}
                     onChange={(e) => setFormData({...formData, bio: e.target.value})}
                     rows={4}
-                    className="w-full pl-12 pr-4 py-4 bg-zinc-900/50 border border-border-theme rounded-2xl text-sm font-medium text-white focus:outline-none focus:border-purple-600 transition-all no-scrollbar resize-none"
+                    className="w-full pl-12 pr-4 py-4 bg-background/50 border border-border-theme rounded-2xl text-sm font-medium text-foreground focus:outline-none focus:border-purple-600 transition-all no-scrollbar resize-none"
                     placeholder="Tell your story..."
                   />
                 </div>
@@ -300,16 +300,16 @@ export default function EditProfileOverlay({ isOpen, onClose, user, onUpdate }: 
 
               {/* Date of Birth */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Birth Date</label>
+                <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">Birth Date</label>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 pointer-events-none">
                     <Calendar size={16} />
                   </div>
                   <input 
                     type="date" 
                     value={formData.dob}
                     onChange={(e) => setFormData({...formData, dob: e.target.value})}
-                    className="w-full pl-12 pr-4 py-4 bg-zinc-900/50 border border-border-theme rounded-2xl text-sm font-bold text-white focus:outline-none focus:border-purple-600 transition-all [color-scheme:dark]"
+                    className="w-full pl-12 pr-4 py-4 bg-background/50 border border-border-theme rounded-2xl text-sm font-bold text-foreground focus:outline-none focus:border-purple-600 transition-all"
                   />
                 </div>
               </div>
@@ -317,21 +317,21 @@ export default function EditProfileOverlay({ isOpen, onClose, user, onUpdate }: 
               {/* Ghost Account Option (Only for regular users) */}
               {!isCreator && (
                 <div className="space-y-4">
-                  <div className="p-8 bg-zinc-900/20 border border-border-theme rounded-[2.5rem] relative overflow-hidden group">
+                  <div className="p-8 bg-card-bg/20 border border-border-theme rounded-[2.5rem] relative overflow-hidden group">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-2xl transition-all ${formData.isGhost ? 'bg-purple-600 text-white shadow-xl shadow-purple-600/30' : 'bg-zinc-800 text-zinc-500'}`}>
+                        <div className={`p-3 rounded-2xl transition-all ${formData.isGhost ? 'bg-purple-600 text-white shadow-xl shadow-purple-600/30' : 'bg-card-bg text-muted-foreground'}`}>
                           <Ghost size={20} />
                         </div>
                         <div>
-                          <h4 className="text-sm font-black uppercase italic tracking-tighter text-white">Ghost Presence</h4>
-                          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Enhanced Privacy Mode</p>
+                          <h4 className="text-sm font-black uppercase italic tracking-tighter text-foreground">Ghost Presence</h4>
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Enhanced Privacy Mode</p>
                         </div>
                       </div>
                       <button 
                         type="button"
                         onClick={() => setFormData({...formData, isGhost: !formData.isGhost})}
-                        className={`w-14 h-8 rounded-full relative transition-all duration-300 ${formData.isGhost ? 'bg-purple-600' : 'bg-zinc-800'}`}
+                        className={`w-14 h-8 rounded-full relative transition-all duration-300 ${formData.isGhost ? 'bg-purple-600' : 'bg-card-bg'}`}
                       >
                         <motion.div 
                           animate={{ x: formData.isGhost ? 28 : 4 }}
@@ -361,11 +361,11 @@ export default function EditProfileOverlay({ isOpen, onClose, user, onUpdate }: 
             </form>
 
             {/* Footer / Action */}
-            <div className="p-8 border-t border-border-theme bg-zinc-950/80 backdrop-blur-xl absolute bottom-0 inset-x-0">
+            <div className="p-8 border-t border-border-theme bg-background/80 backdrop-blur-xl absolute bottom-0 inset-x-0">
                <button 
                  disabled={isSaving || usernameStatus === 'taken'}
                  onClick={handleSubmit}
-                 className="w-full py-5 bg-white text-black font-black uppercase italic tracking-widest rounded-2xl hover:bg-purple-600 hover:text-white transition-all shadow-xl shadow-black/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+                 className="w-full py-5 bg-foreground text-background font-black uppercase italic tracking-widest rounded-2xl hover:opacity-80 transition-all shadow-xl shadow-black/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
                >
                  {isSaving ? <Loader2 className="animate-spin" size={20} /> : "Update Identity"}
                </button>

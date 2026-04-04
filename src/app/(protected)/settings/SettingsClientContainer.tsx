@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import UserSettings from '@/components/UserSettings';
 import EditProfileOverlay from '@/components/EditProfileOverlay';
+import SecurityOverlay from '@/components/SecurityOverlay';
+import PrivacyOverlay from '@/components/PrivacyOverlay';
+import AppearanceOverlay from '@/components/AppearanceOverlay';
+import ContentPreferencesOverlay from '@/components/ContentPreferencesOverlay';
 import { useState } from 'react';
 
 interface SettingsClientContainerProps {
@@ -18,6 +22,8 @@ interface SettingsClientContainerProps {
     role: string;
     isGhost: boolean;
     creatorStatus: string;
+    autoplayVideos: boolean;
+    mutedWords: string[];
     creatorProfile: {
       tier1Price: number;
       tier2Price: number;
@@ -29,17 +35,21 @@ interface SettingsClientContainerProps {
 const SettingsClientContainer = ({ user }: SettingsClientContainerProps) => {
   const router = useRouter();
   const [isEditOverlayOpen, setIsEditOverlayOpen] = useState(false);
+  const [isSecurityOverlayOpen, setIsSecurityOverlayOpen] = useState(false);
+  const [isPrivacyOverlayOpen, setIsPrivacyOverlayOpen] = useState(false);
+  const [isAppearanceOverlayOpen, setIsAppearanceOverlayOpen] = useState(false);
+  const [isContentPreferencesOverlayOpen, setIsContentPreferencesOverlayOpen] = useState(false);
   const [userData, setUserData] = useState(user);
 
   return (
-    <div className="w-full min-h-screen bg-black text-white px-4 md:px-10 pt-10 pb-20">
+    <div className="w-full min-h-screen bg-background text-foreground px-4 md:px-10 pt-10 pb-20 transition-colors duration-300">
       {/* 1. Header with Back Button - Full Width */}
       <div className="flex items-center gap-6 mb-12">
         <button 
           onClick={() => router.back()}
-          className="p-3 bg-zinc-900/50 hover:bg-zinc-800 rounded-2xl border border-border-theme transition-all group"
+          className="p-3 bg-card-bg hover:bg-card-hover rounded-2xl border border-border-theme transition-all group"
         >
-          <ArrowLeft size={24} className="text-zinc-400 group-hover:text-white group-hover:-translate-x-1 transition-transform" />
+          <ArrowLeft size={24} className="text-muted-foreground group-hover:text-foreground group-hover:-translate-x-1 transition-transform" />
         </button>
         <h1 className="text-3xl md:text-4xl font-black tracking-tight uppercase italic">Settings</h1>
       </div>
@@ -49,14 +59,41 @@ const SettingsClientContainer = ({ user }: SettingsClientContainerProps) => {
         showBecomeCreator={false} 
         user={userData as any} 
         onEditProfile={() => setIsEditOverlayOpen(true)}
+        onSecurityClick={() => setIsSecurityOverlayOpen(true)}
+        onPrivacyClick={() => setIsPrivacyOverlayOpen(true)}
+        onAppearanceClick={() => setIsAppearanceOverlayOpen(true)}
+        onContentPreferencesClick={() => setIsContentPreferencesOverlayOpen(true)}
       />
 
-      {/* 3. Sliding Edit Profile Overlay */}
+      {/* 3. Sliding Overlays */}
       <EditProfileOverlay 
         isOpen={isEditOverlayOpen} 
         onClose={() => setIsEditOverlayOpen(false)} 
         user={userData as any} 
         onUpdate={(updated) => setUserData(prev => ({ ...prev, ...updated }))}
+      />
+      <SecurityOverlay 
+        userId={userData.id} 
+        isTwoFactorEnabled={!!(userData as any).twoFactorQuestion}
+        defaultLoginAlerts={(userData as any).loginAlerts ?? false}
+        isOpen={isSecurityOverlayOpen} 
+        onClose={() => setIsSecurityOverlayOpen(false)} 
+      />
+      <PrivacyOverlay 
+        userId={userData.id} 
+        defaultPrivateAccount={(userData as any).isPrivateAccount ?? false}
+        defaultActivityStatus={(userData as any).isActivityStatusEnabled ?? true}
+        isOpen={isPrivacyOverlayOpen} 
+        onClose={() => setIsPrivacyOverlayOpen(false)} 
+        onUpdate={(updates) => setUserData(prev => ({ ...prev, ...updates }))}
+      />
+      <AppearanceOverlay isOpen={isAppearanceOverlayOpen} onClose={() => setIsAppearanceOverlayOpen(false)} />
+      <ContentPreferencesOverlay
+        isOpen={isContentPreferencesOverlayOpen}
+        onClose={() => setIsContentPreferencesOverlayOpen(false)}
+        userId={userData.id}
+        defaultAutoplay={userData.autoplayVideos ?? true}
+        defaultMutedWords={userData.mutedWords ?? []}
       />
     </div>
   );

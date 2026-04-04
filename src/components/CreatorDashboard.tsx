@@ -194,16 +194,16 @@ const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: Creato
       {/* Header with quick stats */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-4xl font-black uppercase italic tracking-tighter mb-2">Creator Dashboard</h1>
-          <p className="text-zinc-500 text-sm font-medium">Monitoring your success and content performance.</p>
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter mb-2 text-foreground">Creator Dashboard</h1>
+          <p className="text-muted-foreground text-sm font-medium">Monitoring your success and content performance.</p>
         </div>
         
         <div className="flex items-center gap-3">
             <Link 
               href="/settings"
-              className="p-3 bg-zinc-900 hover:bg-zinc-800 rounded-2xl border border-border-theme transition-all group"
+              className="p-3 bg-card-bg hover:bg-card-hover rounded-2xl border border-border-theme transition-all group"
             >
-              <SettingsIcon size={20} className="text-zinc-400 group-hover:rotate-90 transition-transform duration-500" />
+              <SettingsIcon size={20} className="text-muted-foreground group-hover:rotate-90 transition-transform duration-500" />
             </Link>
             <button className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-purple-500/20">
               <Download size={14} /> Export Report
@@ -251,24 +251,24 @@ const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: Creato
       </div>
 
       {/* Graph Section */}
-      <div className="bg-zinc-950 border border-border-theme rounded-[2.5rem] p-8 space-y-8">
+      <div className="bg-card-bg border border-border-theme rounded-[2.5rem] p-8 space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-4">
              <div className="p-3 bg-purple-500/10 rounded-2xl border border-purple-500/20">
                 <BarChart3 size={20} className="text-purple-500" />
              </div>
              <div>
-               <h3 className="text-lg font-black uppercase tracking-tight">Revenue Analytics</h3>
-               <p className="text-zinc-500 text-xs">Real-time revenue performance over time</p>
+               <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Revenue Analytics</h3>
+               <p className="text-muted-foreground text-xs">Real-time revenue performance over time</p>
              </div>
           </div>
           
-          <div className="flex items-center bg-zinc-900/50 p-1.5 rounded-2xl border border-border-theme">
+          <div className="flex items-center bg-background/50 p-1.5 rounded-2xl border border-border-theme">
             {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => (
               <button
                 key={period}
                 onClick={() => setTimeFilter(period)}
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${timeFilter === period ? 'bg-white text-black shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${timeFilter === period ? 'bg-foreground text-background shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 {period}
               </button>
@@ -289,39 +289,39 @@ const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: Creato
                   <LayoutDashboard size={20} className="text-zinc-400" />
                </div>
                <div>
-                 <h3 className="text-lg font-black uppercase tracking-tight">Manage Content</h3>
-                 <p className="text-zinc-500 text-xs">Visibility and performance of your posts & reels</p>
+                 <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Manage Content</h3>
+                 <p className="text-muted-foreground text-xs">Visibility and performance of your posts & reels</p>
                </div>
           </div>
-          <button className="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors flex items-center gap-2">
+          <button className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2">
             View All <ArrowUpRight size={14} />
           </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Posts List */}
-          <div className="bg-zinc-950 border border-border-theme rounded-[2.5rem] p-6 space-y-6">
-              <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
+          <div className="bg-card-bg border border-border-theme rounded-[2.5rem] p-6 space-y-6">
+              <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" /> Recent Posts
               </h4>
               <div className="space-y-4">
                 {user.posts.slice(0, 3).map((post) => (
                   <ContentItem key={post.id} item={post} type="post" userId={user.id} onToggle={onToggleVisibility} />
                 ))}
-                {user.posts.length === 0 && <p className="text-zinc-600 text-xs italic">No posts found.</p>}
+                {user.posts.length === 0 && <p className="text-muted-foreground text-xs italic">No posts found.</p>}
               </div>
           </div>
 
           {/* Recent Reels List */}
-          <div className="bg-zinc-950 border border-border-theme rounded-[2.5rem] p-6 space-y-6">
-              <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
+          <div className="bg-card-bg border border-border-theme rounded-[2.5rem] p-6 space-y-6">
+              <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> Recent Reels
               </h4>
               <div className="space-y-4">
                 {user.reels.slice(0, 3).map((reel) => (
                   <ContentItem key={reel.id} item={reel} type="reel" userId={user.id} onToggle={onToggleVisibility} />
                 ))}
-                {user.reels.length === 0 && <p className="text-zinc-600 text-xs italic">No reels found.</p>}
+                {user.reels.length === 0 && <p className="text-muted-foreground text-xs italic">No reels found.</p>}
               </div>
           </div>
         </div>
@@ -332,18 +332,18 @@ const CreatorDashboard = ({ user, platformFee = 20, onToggleVisibility }: Creato
 
 // Sub-components
 const StatCard = ({ title, value, trend, trendUp, icon }: any) => (
-  <div className="bg-zinc-950 border border-border-theme p-8 rounded-[2.5rem] hover:border-border-theme transition-all group overflow-hidden relative">
-    <div className="absolute -right-4 -top-4 w-24 h-24 bg-zinc-900/10 rounded-full group-hover:scale-150 transition-transform duration-700" />
+  <div className="bg-card-bg border border-border-theme p-8 rounded-[2.5rem] hover:border-border-theme transition-all group overflow-hidden relative">
+    <div className="absolute -right-4 -top-4 w-24 h-24 bg-card-bg/20 rounded-full group-hover:scale-150 transition-transform duration-700" />
     <div className="flex justify-between items-start mb-6">
-      <div className="p-3 bg-zinc-900 rounded-2xl group-hover:scale-110 transition-transform">{icon}</div>
+      <div className="p-3 bg-background rounded-2xl group-hover:scale-110 transition-transform">{icon}</div>
       <div className={`flex items-center gap-1 text-[10px] font-black p-1.5 px-3 rounded-full ${trendUp ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
         {trendUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
         {trend}
       </div>
     </div>
     <div className="space-y-1">
-      <p className="text-zinc-500 text-[10px] uppercase font-black tracking-widest">{title}</p>
-      <p className="text-3xl font-black italic tracking-tighter" suppressHydrationWarning>{value}</p>
+      <p className="text-muted-foreground text-[10px] uppercase font-black tracking-widest">{title}</p>
+      <p className="text-3xl font-black italic tracking-tighter text-foreground" suppressHydrationWarning>{value}</p>
     </div>
   </div>
 );
@@ -371,7 +371,7 @@ const ContentItem = ({ item, type, userId, onToggle }: { item: any; type: 'post'
   };
 
   return (
-    <div className="flex items-center justify-between p-4 bg-zinc-900/30 rounded-3xl border border-border-theme hover:border-border-theme transition-all group">
+    <div className="flex items-center justify-between p-4 bg-card-bg/30 rounded-3xl border border-border-theme hover:border-border-theme transition-all group">
       <div className="flex items-center gap-4">
         <div className={`w-12 h-12 relative rounded-xl overflow-hidden border border-border-theme ${!isVisible ? 'opacity-40 grayscale-[0.5]' : ''}`}>
            {type === 'post' ? (
@@ -381,12 +381,12 @@ const ContentItem = ({ item, type, userId, onToggle }: { item: any; type: 'post'
            )}
         </div>
         <div>
-          <p className="text-xs font-black uppercase tracking-tight line-clamp-1 flex items-center gap-2">
+          <p className="text-xs font-black uppercase tracking-tight line-clamp-1 flex items-center gap-2 text-foreground">
             {item.caption || "Untiled Content"}
-            {!isVisible && <span className="bg-zinc-800 text-[8px] px-1.5 py-0.5 rounded text-zinc-500">Hidden</span>}
+            {!isVisible && <span className="bg-card-bg text-[8px] px-1.5 py-0.5 rounded text-muted-foreground">Hidden</span>}
           </p>
           <div className="flex items-center gap-3 mt-1">
-             <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest" suppressHydrationWarning>
+             <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest" suppressHydrationWarning>
                {new Date(item.createdAt).toLocaleDateString()}
              </span>
              {item.isPremium && <span className="text-[9px] text-amber-500 font-black px-1.5 bg-amber-500/10 rounded outline outline-1 outline-amber-500/20">$ {item.price || "Free"}</span>}
@@ -398,11 +398,11 @@ const ContentItem = ({ item, type, userId, onToggle }: { item: any; type: 'post'
          <button 
            disabled={loading}
            onClick={handleToggle}
-           className={`p-2 rounded-xl border transition-all ${isVisible ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-zinc-800 border-border-theme text-zinc-500'} ${loading ? 'opacity-50' : ''}`}
+           className={`p-2 rounded-xl border transition-all ${isVisible ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-background border-border-theme text-muted-foreground'} ${loading ? 'opacity-50' : ''}`}
          >
            {loading ? <Loader2 size={16} className="animate-spin" /> : isVisible ? <Eye size={16} /> : <EyeOff size={16} />}
          </button>
-         <button className="p-2 bg-zinc-800 border border-border-theme text-zinc-400 rounded-xl hover:bg-zinc-700 transition-all">
+         <button className="p-2 bg-background border border-border-theme text-muted-foreground rounded-xl hover:bg-card-bg transition-all">
            <MoreHorizontal size={16} />
          </button>
       </div>

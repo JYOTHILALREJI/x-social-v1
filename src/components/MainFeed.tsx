@@ -6,6 +6,7 @@ import SuggestedCreators from './SuggestedCreators';
 import PostCard from './PostCard'; 
 import Link from 'next/link';
 import { Users } from 'lucide-react';
+import { getStoriesForFeed } from '@/app/actions/story-actions';
 
 const MainFeed = async () => {
   const cookieStore = await cookies();
@@ -23,17 +24,17 @@ const MainFeed = async () => {
   // SAFETY CHECK: Prevent Prisma crash if user is not logged in or session invalid
   if (!userId) {
     return (
-      <div className="h-[calc(100vh-80px)] w-full flex flex-col items-center justify-center bg-black text-zinc-500">
+      <div className="h-[calc(100vh-80px)] w-full flex flex-col items-center justify-center bg-background text-muted-foreground">
         <div className="max-w-md text-center px-6">
           <Users size={64} className="mb-6 text-purple-500 opacity-50 mx-auto" />
-          <h2 className="text-4xl md:text-5xl font-black tracking-tighter uppercase italic text-white mb-4 leading-none text-center">
+          <h2 className="text-4xl md:text-5xl font-black tracking-tighter uppercase italic text-foreground mb-4 leading-none text-center">
             Your Feed is <span className="text-purple-500">Waitng</span>
           </h2>
-          <p className="text-xs md:text-sm uppercase tracking-[0.2em] font-bold text-zinc-600 leading-relaxed mb-10 text-center">
+          <p className="text-xs md:text-sm uppercase tracking-[0.2em] font-bold text-muted-foreground leading-relaxed mb-10 text-center">
             Please sign in to see your personalized feed and community updates.
           </p>
           <Link href="/auth">
-            <button className="px-10 py-5 bg-white text-black border border-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-600 hover:text-white transition-all shadow-xl shadow-white/5 active:scale-95">
+            <button className="px-10 py-5 bg-foreground text-background border border-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest hover:opacity-80 transition-all shadow-xl active:scale-95">
               Explore Now
             </button>
           </Link>
@@ -47,8 +48,11 @@ const MainFeed = async () => {
     where: { id: userId },
     select: {
       id: true,
+      role: true,
       walletBalance: true,
       isGhost: true,
+      autoplayVideos: true,
+      mutedWords: true,
       follows: { 
         where: {
           following: { isGhost: false }
@@ -57,12 +61,16 @@ const MainFeed = async () => {
           followingId: true,
           subscriptionTier: true,
           following: { 
-            select: { id: true, username: true, name: true, image: true } 
+            select: { id: true, username: true, name: true, image: true, lastSeen: true, isActivityStatusEnabled: true } 
           }
         }
       }
     }
   });
+
+  const autoplayVideos = user?.autoplayVideos ?? true;
+  const mutedWords: string[] = user?.mutedWords ?? [];
+  const isCreator = user?.role === 'CREATOR';
 
   const followingIds = user?.follows.map(f => f.followingId) || [];
   const followedCreators = user?.follows.map(f => f.following) || [];
@@ -85,7 +93,7 @@ const MainFeed = async () => {
         isPremium: true, 
         price: true, 
         authorId: true,
-        author: { select: { username: true, name: true, image: true } },
+        author: { select: { username: true, name: true, image: true, lastSeen: true, isActivityStatusEnabled: true } },
         purchases: { where: { userId } },
         likes: { where: { userId } },
         _count: { select: { likes: true } },
@@ -108,7 +116,7 @@ const MainFeed = async () => {
         take: 10,
         select: { 
             id: true, caption: true, createdAt: true, isPremium: true, price: true, authorId: true,
-            author: { select: { username: true, name: true, image: true } },
+            author: { select: { username: true, name: true, image: true, lastSeen: true, isActivityStatusEnabled: true } },
             purchases: { where: { userId } },
             likes: { where: { userId } },
             _count: { select: { likes: true } },
@@ -124,7 +132,7 @@ const MainFeed = async () => {
         take: 10,
         select: { 
             id: true, caption: true, createdAt: true, isPremium: true, price: true, authorId: true,
-            author: { select: { username: true, name: true, image: true } },
+            author: { select: { username: true, name: true, image: true, lastSeen: true, isActivityStatusEnabled: true } },
             purchases: { where: { userId } },
             likes: { where: { userId } },
             _count: { select: { likes: true } },
@@ -145,6 +153,14 @@ const MainFeed = async () => {
     }
   }
 
+  // Filter out posts containing muted words
+  if (mutedWords.length > 0) {
+    posts = posts.filter((post: any) => {
+      const caption = (post.caption || '').toLowerCase();
+      return !mutedWords.some(word => caption.includes(word.toLowerCase()));
+    });
+  }
+
   // 3. Fetch Suggested (Creators user IS NOT following)
   const suggested = await prisma.user.findMany({
     where: { 
@@ -152,20 +168,36 @@ const MainFeed = async () => {
       role: "CREATOR",
       isGhost: false
     },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      image: true,
+      lastSeen: true,
+      isActivityStatusEnabled: true
+    },
     take: 4
   });
 
 
+  // 4. Fetch stories for the feed
+  const storiesRes = await getStoriesForFeed(userId);
+  const stories = (storiesRes.stories || []) as any[];
+
   return (
-    <div className="h-full w-full overflow-y-auto no-scrollbar bg-black">
+    <div className="h-full w-full overflow-y-auto no-scrollbar bg-background">
       <div className="w-full max-w-7xl mx-auto pt-12 pb-24 px-4 md:px-10">
         
         {/* STORIES SECTION */}
-        <StoriesBar followedCreators={followedCreators} />
+        <StoriesBar 
+          stories={stories} 
+          currentUserId={userId}
+          isCreator={isCreator}
+        />
 
         <header className="mb-16 text-left">
-          <h2 className="text-5xl font-black italic tracking-tighter text-white uppercase">
-            For <span className="text-zinc-500">You</span>
+          <h2 className="text-5xl font-black italic tracking-tighter text-foreground uppercase">
+            For <span className="text-muted-foreground">You</span>
           </h2>
           <div className="h-1 w-20 bg-purple-600 mt-4 rounded-full" />
         </header>

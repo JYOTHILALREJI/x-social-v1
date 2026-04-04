@@ -30,6 +30,12 @@ export default async function ProfilePage() {
           walletBalance: true,
           followersCount: true,
           subscribersCount: true,
+          twoFactorQuestion: true,
+          loginAlerts: true,
+          isPrivateAccount: true,
+          isActivityStatusEnabled: true,
+          autoplayVideos: true,
+          mutedWords: true,
           // Fetch actual posts for the creator dashboard
           posts: {
             take: 20,
@@ -49,8 +55,27 @@ export default async function ProfilePage() {
           creatorProfile: {
             select: {
               tier1Price: true,
+              tier1Duration: true,
               tier2Price: true,
-              tier3Price: true
+              tier2Duration: true,
+              tier3Price: true,
+              tier3Duration: true
+            }
+          },
+          follows: {
+            where: {
+              subscriptionTier: { gt: 0 },
+              expiresAt: { gt: new Date() }
+            },
+            select: {
+              subscriptionTier: true,
+              expiresAt: true,
+              following: {
+                select: {
+                  username: true,
+                  name: true
+                }
+              }
             }
           },
           revenues: {

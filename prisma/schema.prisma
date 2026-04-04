@@ -1,69 +1,84 @@
-// prisma/schema.prisma
-
 generator client {
-  provider = "prisma-client-js" // FIXED: Must be prisma-client-js
+  provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  //url      = env("DATABASE_URL")
 }
 
 model User {
-  id       String   @id @default(cuid())
-  email    String   @unique
-  username String   @unique
-  name     String?
-  password String
-  dob      DateTime
-  role     Role     @default(USER)
+  id                      String           @id @default(cuid())
+  email                   String           @unique
+  username                String           @unique
+  name                    String?
+  password                String
+  dob                     DateTime
+  role                    Role             @default(USER)
+  creatorStatus           CreatorStatus    @default(NONE)
+  idProofUrl              String?
+  verifiedAt              DateTime?
+  walletBalance           Int              @default(0)
+  image                   String?
+  bio                     String?
+  gender                  String?
+  interestedIn            String?
+  isGhost                 Boolean          @default(false)
+  isPrivateAccount        Boolean          @default(false)
+  isActivityStatusEnabled Boolean          @default(true)
+  lastSeen                DateTime         @default(now())
+  twoFactorQuestion       String?
+  twoFactorAnswer         String?
+  loginAlerts             Boolean          @default(false)
+  autoplayVideos          Boolean          @default(true)
+  mutedWords              String[]         @default([])
+  createdAt               DateTime         @default(now())
+  followersCount          Int              @default(0)
+  followingCount          Int              @default(0)
+  subscribersCount        Int              @default(0)
+  aiConversations         AIConversation[]
+  blockedBy               Block[]          @relation("BlockedBy")
+  blocking                Block[]          @relation("Blocking")
+  creatorProfile          CreatorProfile?
+  follows                 Follow[]         @relation("follower")
+  followers               Follow[]         @relation("following")
+  receivedMatches         Match[]          @relation("ReceivedMatches")
+  sentMatches             Match[]          @relation("SentMatches")
+  notifications           Notification[]
+  posts                   Post[]
+  comments                PostComment[]
+  likedPosts              PostLike[]
+  purchases               Purchase[]
+  reels                   Reel[]
+  reelComments            ReelComment[]
+  likedReels              ReelLike[]
+  upvotedReels            ReelUpvote[]
+  revenues                Revenue[]        @relation("CreatorRevenue")
+  spendings               Revenue[]        @relation("UserSpendings")
+  sessions                Session[]
+  stories                 Story[]
+  storyViews              StoryMediaView[]
+  interests               UserInterest[]
+}
 
-  // Creator Verification Fields
-  creatorStatus  CreatorStatus   @default(NONE)
-  creatorProfile CreatorProfile?
-  idProofUrl     String?
-  verifiedAt     DateTime?
+model Block {
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocked   User     @relation("BlockedBy", fields: [blockedId], references: [id])
+  blocker   User     @relation("Blocking", fields: [blockerId], references: [id])
 
-  walletBalance Int      @default(0)
-  image         String?
-  bio           String?
-  gender        String?
-  interestedIn  String?
-  isGhost       Boolean  @default(false)
-  createdAt     DateTime @default(now())
-
-  sessions   Session[]
-  posts      Post[]
-  reels      Reel[]
-  likedPosts PostLike[]
-  comments   PostComment[]
-
-  // Dating Relationships
-  sentMatches     Match[]        @relation("SentMatches")
-  receivedMatches Match[]        @relation("ReceivedMatches")
-  interests       UserInterest[]
-
-  // AI Companion Relationship
-  aiConversations AIConversation[]
-
-  follows          Follow[]   @relation("follower") // People THIS user follows
-  followers        Follow[]   @relation("following") // People following THIS user
-  followersCount   Int        @default(0)
-  followingCount   Int        @default(0)
-  subscribersCount Int        @default(0)
-  revenues         Revenue[]  @relation("CreatorRevenue") // Revenue earned
-  purchases        Purchase[]
-  spendings        Revenue[]  @relation("UserSpendings") // Money spent
+  @@id([blockerId, blockedId])
 }
 
 model Follow {
-  follower         User      @relation("follower", fields: [followerId], references: [id])
   followerId       String
-  following        User      @relation("following", fields: [followingId], references: [id])
   followingId      String
-  subscriptionTier Int       @default(0) // 0: just follow, 1-3: tiers
-  expiresAt        DateTime? // For future subscription expiry logic
+  status           String    @default("ACCEPTED")
+  subscriptionTier Int       @default(0)
+  expiresAt        DateTime?
+  follower         User      @relation("follower", fields: [followerId], references: [id])
+  following        User      @relation("following", fields: [followingId], references: [id])
 
   @@id([followerId, followingId])
 }
@@ -71,31 +86,31 @@ model Follow {
 model CreatorProfile {
   id         String   @id @default(cuid())
   userId     String   @unique
-  user       User     @relation(fields: [userId], references: [id])
-  categories String[] // Lingerie, Nudity, etc.
-  idProofUrl String // URL from S3/Cloudinary
-  selfieUrl  String // URL from S3/Cloudinary
-  tier1Price Int      @default(0)
-  tier2Price Int      @default(0)
-  tier3Price Int      @default(0)
+  categories String[]
+  idProofUrl String
+  selfieUrl  String
+  tier1Price    Int      @default(0)
+  tier1Duration Int      @default(30)
+  tier2Price    Int      @default(0)
+  tier2Duration Int      @default(30)
+  tier3Price    Int      @default(0)
+  tier3Duration Int      @default(30)
   status     Status   @default(PENDING)
   createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
 }
 
 model Revenue {
   id        String   @id @default(cuid())
   creatorId String
-  senderId  String? // The user who paid
+  senderId  String?
   amount    Int
-  type      String // e.g., "SUBSCRIPTION", "POST_PURCHASE", "REEL_PURCHASE", "TIP"
+  type      String
   createdAt DateTime @default(now())
-
-  creator User  @relation("CreatorRevenue", fields: [creatorId], references: [id])
-  sender  User? @relation("UserSpendings", fields: [senderId], references: [id])
-
-  // Optional links to specific content
-  postId String?
-  reelId String?
+  postId    String?
+  reelId    String?
+  creator   User     @relation("CreatorRevenue", fields: [creatorId], references: [id])
+  sender    User?    @relation("UserSpendings", fields: [senderId], references: [id])
 
   @@index([creatorId])
   @@index([senderId])
@@ -107,9 +122,8 @@ model Match {
   receiverId String
   status     MatchStatus @default(PENDING)
   createdAt  DateTime    @default(now())
-
-  sender   User @relation("SentMatches", fields: [senderId], references: [id])
-  receiver User @relation("ReceivedMatches", fields: [receiverId], references: [id])
+  receiver   User        @relation("ReceivedMatches", fields: [receiverId], references: [id])
+  sender     User        @relation("SentMatches", fields: [senderId], references: [id])
 
   @@unique([senderId, receiverId])
 }
@@ -121,8 +135,7 @@ model AIConversation {
   messages  Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Interest {
@@ -134,42 +147,43 @@ model Interest {
 model UserInterest {
   userId     String
   interestId String
-  user       User     @relation(fields: [userId], references: [id])
   interest   Interest @relation(fields: [interestId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
 
   @@id([userId, interestId])
 }
 
 model Post {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   imageUrl  String
   caption   String?
-  isPremium Boolean  @default(false)
-  isPrivate Boolean  @default(false)
+  isPremium Boolean       @default(false)
+  isPrivate Boolean       @default(false)
   price     Int?
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  purchases Purchase[]
-  likes     PostLike[]    @relation("PostLikes")
+  createdAt DateTime      @default(now())
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments  PostComment[] @relation("PostComments")
+  likes     PostLike[]    @relation("PostLikes")
+  purchases Purchase[]
 
   @@index([authorId])
 }
 
 model Reel {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   videoUrl  String
   caption   String?
-  isPremium Boolean  @default(false)
-  isPrivate Boolean  @default(false)
+  isPremium Boolean       @default(false)
+  isPrivate Boolean       @default(false)
   price     Int?
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
+  createdAt DateTime      @default(now())
   purchases Purchase[]
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments  ReelComment[] @relation("ReelComments")
+  likes     ReelLike[]    @relation("ReelLikes")
+  upvotes   ReelUpvote[]  @relation("ReelUpvotes")
 
   @@index([authorId])
 }
@@ -180,10 +194,9 @@ model Purchase {
   postId    String?
   reelId    String?
   createdAt DateTime @default(now())
-
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post Post? @relation(fields: [postId], references: [id])
-  reel Reel? @relation(fields: [reelId], references: [id])
+  post      Post?    @relation(fields: [postId], references: [id])
+  reel      Reel?    @relation(fields: [reelId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId])
   @@unique([userId, reelId])
@@ -194,9 +207,120 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  device       String?
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model SystemSettings {
+  id          String   @id @default("default")
+  platformFee Int      @default(20)
+  updatedAt   DateTime @updatedAt
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation("PostLikes", fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  text      String
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation("PostComments", fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  message   String
+  type      String   @default("SECURITY")
+  isRead    Boolean  @default(false)
+  relatedId String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ReelLike {
+  id        String   @id @default(cuid())
+  userId    String
+  reelId    String
+  createdAt DateTime @default(now())
+  reel      Reel     @relation("ReelLikes", fields: [reelId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reelId])
+}
+
+model ReelComment {
+  id        String   @id @default(cuid())
+  text      String
+  userId    String
+  reelId    String
+  createdAt DateTime @default(now())
+  reel      Reel     @relation("ReelComments", fields: [reelId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([reelId])
+}
+
+model ReelUpvote {
+  id        String   @id @default(cuid())
+  userId    String
+  reelId    String
+  createdAt DateTime @default(now())
+  reel      Reel     @relation("ReelUpvotes", fields: [reelId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reelId])
+}
+
+model Story {
+  id        String       @id @default(cuid())
+  authorId  String
+  createdAt DateTime     @default(now())
+  author    User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media     StoryMedia[]
+
+  @@index([authorId])
+}
+
+model StoryMedia {
+  id        String           @id @default(cuid())
+  storyId   String
+  url       String
+  type      String
+  duration  Int
+  order     Int              @default(0)
+  createdAt DateTime         @default(now())
+  expiresAt DateTime
+  story     Story            @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  views     StoryMediaView[]
+
+  @@index([storyId])
+}
+
+model StoryMediaView {
+  id           String     @id @default(cuid())
+  storyMediaId String
+  userId       String
+  viewedAt     DateTime   @default(now())
+  media        StoryMedia @relation(fields: [storyMediaId], references: [id], onDelete: Cascade)
+  viewer       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyMediaId, userId])
 }
 
 enum Role {
@@ -222,35 +346,4 @@ enum MatchStatus {
   PENDING
   ACCEPTED
   REJECTED
-}
-
-model SystemSettings {
-  id          String   @id @default("default")
-  platformFee Int      @default(20) // Percentage
-  updatedAt   DateTime @updatedAt
-}
-
-model PostLike {
-  id        String   @id @default(cuid())
-  userId    String
-  postId    String
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post Post @relation("PostLikes", fields: [postId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, postId])
-}
-
-model PostComment {
-  id        String   @id @default(cuid())
-  text      String
-  userId    String
-  postId    String
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post Post @relation("PostComments", fields: [postId], references: [id], onDelete: Cascade)
-
-  @@index([postId])
 }

@@ -85,6 +85,15 @@ export async function GET(
       data = reel?.videoUrl ?? null;
       isPremium = reel?.isPremium ?? false;
       authorId = reel?.authorId ?? "";
+    } else if (type === "story") {
+      // Story media is always free — just requires authentication
+      const storyMedia = await prisma.storyMedia.findUnique({
+        where: { id },
+        select: { url: true, story: { select: { authorId: true } } },
+      });
+      data = storyMedia?.url ?? null;
+      isPremium = false; // stories are never paywalled
+      authorId = storyMedia?.story?.authorId ?? "";
     }
 
     if (!data) {

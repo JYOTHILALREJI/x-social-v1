@@ -1,19 +1,48 @@
+import "dotenv/config";
 import { prisma } from "../src/app/lib/prisma";
 import bcrypt from "bcryptjs";
 
 async function main() {
   console.log("--- 🚀 Starting Seeding Process ---");
 
-  // 1. Cleanup existing data (be careful in production!)
-  await prisma.match.deleteMany();
-
-  await prisma.post.deleteMany();
+  // 1. Cleanup existing data (order matters due to foreign keys)
+  await prisma.storyMediaView.deleteMany();
+  await prisma.storyMedia.deleteMany();
+  await prisma.story.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.revenue.deleteMany();
+  await prisma.purchase.deleteMany();
+  await prisma.reelUpvote.deleteMany();
+  await prisma.reelComment.deleteMany();
+  await prisma.reelLike.deleteMany();
+  await prisma.postComment.deleteMany();
+  await prisma.postLike.deleteMany();
   await prisma.reel.deleteMany();
+  await prisma.post.deleteMany();
+  await prisma.match.deleteMany();
+  await prisma.block.deleteMany();
+  await prisma.follow.deleteMany();
+  await prisma.creatorProfile.deleteMany();
+  await prisma.userInterest.deleteMany();
+  await prisma.interest.deleteMany();
   await prisma.session.deleteMany();
   await prisma.user.deleteMany();
-  await prisma.interest.deleteMany();
 
   const hashedPassword = await bcrypt.hash("password123", 10);
+  const adminPassword = await bcrypt.hash("admin123", 10);
+
+  // 1.5 Create Admin User
+  const admin = await prisma.user.create({
+    data: {
+      email: "admin@xsocial.com",
+      username: "admin",
+      password: adminPassword,
+      dob: new Date("1990-01-01"),
+      role: "ADMIN",
+      bio: "System Administrator",
+      image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c",
+    },
+  });
 
   // 2. Create Interests for the Dating Algorithm
   const interests = await Promise.all([
@@ -99,6 +128,7 @@ async function main() {
   });
 
   console.log("--- ✅ Seeding Finished Successfully ---");
+  console.log(`Created Admin: ${admin.email}`);
   console.log(`Created Creator: ${creator.username}`);
   console.log(`Created Fan: ${fan.username}`);
 }

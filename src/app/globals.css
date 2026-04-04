@@ -1,25 +1,47 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --app-border: #d4d4d8;
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --border-theme: 240 5% 30%;
+  --card-bg: 240 10% 4%;
+  --card-hover: 240 10% 8%;
+  --nav-bg: 0 0% 0%;
+  --muted: 240 5% 60%;
+}
+
+.light {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 0%;
+  --border-theme: 240 5% 85%;
+  --card-bg: 0 0% 98%;
+  --card-hover: 0 0% 95%;
+  --nav-bg: 0 0% 100%;
+  --muted: 240 5% 40%;
+}
+
+/* Force dark theme regardless of the html class — used on Landing & Auth pages */
+.dark-forced,
+.dark-forced * {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --border-theme: 240 5% 30%;
+  --card-bg: 240 10% 4%;
+  --card-hover: 240 10% 8%;
+  --nav-bg: 0 0% 0%;
+  --muted: 240 5% 60%;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border-theme: hsl(var(--border-theme));
+  --color-card-bg: hsl(var(--card-bg));
+  --color-card-hover: hsl(var(--card-hover));
+  --color-nav-bg: hsl(var(--nav-bg));
+  --color-muted-foreground: hsl(var(--muted));
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --color-border-theme: var(--app-border);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --app-border: #52525b; /* Increased visibility border that overrides dark inputs/panels */
-  }
 }
 
 body {

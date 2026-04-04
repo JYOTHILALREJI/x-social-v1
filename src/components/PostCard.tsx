@@ -1,11 +1,12 @@
 "use client";
 import React from 'react';
 import Image from 'next/image';
-import { Heart, MessageSquare, Send, Lock, Crown, Loader2, MessageCircle } from 'lucide-react';
-import { purchaseContent, togglePostLike, addPostComment } from '@/app/actions/user-actions';
+import { Send, Lock, Crown, Loader2 } from 'lucide-react';
+import { purchaseContent, togglePostLike } from '@/app/actions/user-actions';
 import { useRouter } from 'next/navigation';
 import PurchaseConfirmationModal from './PurchaseConfirmationModal';
 import { motion, AnimatePresence } from 'framer-motion';
+import UserStatusDot from './UserStatusDot';
 
 interface PostCardProps {
   post: {
@@ -20,6 +21,8 @@ interface PostCardProps {
       username: string;
       name: string | null;
       image: string | null;
+      lastSeen?: Date | string;
+      isActivityStatusEnabled?: boolean;
     };
     purchases?: any[];
     likes?: { userId: string }[];
@@ -53,16 +56,17 @@ const PostCard = ({ post, isSubscribed = false, currentUserId, currentUserBalanc
 
   // Comment State
   const [comments, setComments] = React.useState(post.comments || []);
-  const [commentText, setCommentText] = React.useState("");
-  const [isCommenting, setIsCommenting] = React.useState(false);
-  const [showCommentInput, setShowCommentInput] = React.useState(false);
-  const [activeCommentIndex, setActiveCommentIndex] = React.useState(0);
+  // Index of the first comment in the current visible pair
+  const [pairIndex, setPairIndex] = React.useState(0);
 
-  // Comment Rotation Effect
+  // Pair rotation — advance by 2 every 5 seconds
   React.useEffect(() => {
-    if (comments.length <= 1) return;
+    if (comments.length <= 2) return;
     const interval = setInterval(() => {
-      setActiveCommentIndex((prev) => (prev + 1) % comments.length);
+      setPairIndex(prev => {
+        const next = prev + 2;
+        return next >= comments.length ? 0 : next;
+      });
     }, 5000);
     return () => clearInterval(interval);
   }, [comments.length]);
@@ -109,23 +113,7 @@ const PostCard = ({ post, isSubscribed = false, currentUserId, currentUserBalanc
     setIsLiking(false);
   };
 
-  const handleCommentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!commentText.trim() || isCommenting || isGhost) return;
 
-    setIsCommenting(true);
-    const res = await addPostComment(currentUserId, post.id, commentText.trim());
-    
-    if (res.success && res.comment) {
-      setComments(prev => [res.comment as any, ...prev]);
-      setCommentText("");
-      setShowCommentInput(false);
-      setActiveCommentIndex(0);
-    } else {
-      alert("Failed to post comment.");
-    }
-    setIsCommenting(false);
-  };
 
   const KissIcon = ({ className, filled }: { className?: string, filled?: boolean }) => (
     <svg 
@@ -143,10 +131,10 @@ const PostCard = ({ post, isSubscribed = false, currentUserId, currentUserBalanc
   );
 
   return (
-    <article className="snap-start w-full bg-zinc-900/20 backdrop-blur-md rounded-[2.5rem] border border-border-theme overflow-hidden transition-all duration-500 hover:border-border-theme text-white">
+    <article className="snap-start w-full bg-card-bg/20 backdrop-blur-md rounded-[2.5rem] border border-border-theme overflow-hidden transition-all duration-500 hover:border-border-theme text-foreground">
       <div className="p-8 md:p-10">
         <div className="flex items-center gap-4 mb-8">
-          <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden relative border border-border-theme">
+          <div className="w-12 h-12 rounded-full bg-card-bg overflow-hidden relative border border-border-theme">
             <Image 
               src={post.author.image || "/default_user_profile/default-avatar.png"} 
               alt={post.author.username} 
@@ -155,19 +143,25 @@ const PostCard = ({ post, isSubscribed = false, currentUserId, currentUserBalanc
             />
           </div>
           <div className="flex flex-col">
-            <span className="font-black italic uppercase tracking-tighter text-white text-lg leading-tight">
-              {post.author.name || post.author.username}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-black italic uppercase tracking-tighter text-foreground text-lg leading-tight">
+                {post.author.name || post.author.username}
+              </span>
+              <UserStatusDot 
+                lastSeen={post.author.lastSeen} 
+                isActivityStatusEnabled={post.author.isActivityStatusEnabled} 
+              />
+            </div>
             {post.author.name && (
-              <span className="text-[10px] font-bold text-zinc-500 lowercase opacity-60">
+              <span className="text-[10px] font-bold text-muted-foreground lowercase opacity-60">
                 @{post.author.username}
               </span>
             )}
           </div>
           {post.isPrivate && (
-            <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-zinc-800 border border-border-theme rounded-full">
-              <Lock size={12} className="text-zinc-500" />
-              <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Private</span>
+            <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-card-bg border border-border-theme rounded-full">
+              <Lock size={12} className="text-muted-foreground" />
+              <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Private</span>
             </div>
           )}
           {post.isPremium && (
@@ -235,76 +229,63 @@ const PostCard = ({ post, isSubscribed = false, currentUserId, currentUserBalanc
           </div>
         )}
 
-        <p className="text-zinc-300 text-base leading-relaxed mb-8 font-medium">
+        <p className="text-muted-foreground text-base leading-relaxed mb-8 font-medium italic">
           {post.caption}
         </p>
 
-        {/* ROTATING COMMENTS SECTION */}
+        {/* 2-COMMENT CAROUSEL */}
         {comments.length > 0 && (
-          <div className="mb-8 p-4 bg-zinc-950/40 rounded-2xl border border-border-theme h-16 overflow-hidden relative">
+          <div className="mb-8 overflow-hidden relative" style={{ minHeight: comments.length === 1 ? '56px' : '120px' }}>
             <AnimatePresence mode="wait">
               <motion.div
-                key={comments[activeCommentIndex]?.id}
-                initial={{ y: 20, opacity: 0 }}
+                key={pairIndex}
+                initial={{ y: 32, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                exit={{ y: -20, opacity: 0 }}
-                transition={{ duration: 0.5, ease: "easeInOut" }}
-                className="absolute inset-x-4 inset-y-0 flex items-center gap-3"
+                exit={{ y: -32, opacity: 0 }}
+                transition={{ duration: 0.45, ease: "easeInOut" }}
+                className="space-y-3"
               >
-                <div className="w-8 h-8 rounded-full bg-zinc-800 shrink-0 relative overflow-hidden border border-border-theme">
-                  <Image 
-                    src={comments[activeCommentIndex]?.user.image || "/default_user_profile/default-avatar.png"} 
-                    alt={comments[activeCommentIndex]?.user.username} 
-                    fill 
-                    className="object-cover" 
-                  />
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-black uppercase text-purple-400 tracking-tight leading-none mb-1">
-                    {comments[activeCommentIndex]?.user.name || `@${comments[activeCommentIndex]?.user.username}`}
-                  </span>
-                  <p className="text-xs text-white font-medium truncate italic">
-                    "{comments[activeCommentIndex]?.text}"
-                  </p>
-                </div>
+                {comments.slice(pairIndex, pairIndex + 2).map(comment => (
+                  <div key={comment.id} className="flex items-start gap-3 p-3 bg-background/40 rounded-2xl border border-border-theme">
+                    <div className="w-7 h-7 rounded-full bg-card-bg shrink-0 relative overflow-hidden border border-border-theme">
+                      <Image 
+                        src={comment.user.image || "/default_user_profile/default-avatar.png"} 
+                        alt={comment.user.username} 
+                        fill 
+                        className="object-cover" 
+                      />
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-[10px] font-black uppercase text-purple-400 tracking-tight leading-none mb-0.5">
+                        {comment.user.name || `@${comment.user.username}`}
+                      </span>
+                      <p className="text-xs text-foreground font-medium italic leading-snug line-clamp-1">&ldquo;{comment.text}&rdquo;</p>
+                    </div>
+                  </div>
+                ))}
               </motion.div>
             </AnimatePresence>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-1 items-center opacity-30">
-              <MessageCircle size={12} className="animate-pulse" />
-            </div>
+            {/* Pagination dots */}
+            {comments.length > 2 && (
+              <div className="flex gap-1 mt-2">
+                {Array.from({ length: Math.ceil(comments.length / 2) }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`rounded-full transition-all duration-300 ${
+                      Math.floor(pairIndex / 2) === idx
+                        ? 'w-3 h-1 bg-purple-500'
+                        : 'w-1 h-1 bg-border-theme'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* COMMENT INPUT ACTION */}
-        <AnimatePresence>
-          {showCommentInput && (
-            <motion.form 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              onSubmit={handleCommentSubmit}
-              className="mb-8 flex gap-3 items-center overflow-hidden"
-            >
-              <input 
-                autoFocus
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Write a comment..."
-                className="flex-1 bg-zinc-950/80 border border-border-theme rounded-xl px-4 py-3 text-xs font-medium text-white focus:outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition-all text-white placeholder:text-zinc-600"
-              />
-              <button 
-                type="submit"
-                disabled={isCommenting || !commentText.trim()}
-                className="px-4 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:bg-zinc-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-              >
-                {isCommenting ? <Loader2 size={14} className="animate-spin" /> : "Post"}
-              </button>
-            </motion.form>
-          )}
-        </AnimatePresence>
+
         
-        <div className="flex items-center gap-8 text-zinc-500 border-t border-border-theme pt-8">
+        <div className="flex items-center gap-8 text-muted-foreground border-t border-border-theme pt-8">
           <button 
             disabled={isLiking || isGhost}
             onClick={handleLike} 
@@ -315,14 +296,6 @@ const PostCard = ({ post, isSubscribed = false, currentUserId, currentUserBalanc
                filled={isLiked} 
             />
             <span className="text-[10px] font-black uppercase flex items-center gap-1">Like <span className="opacity-70">({likesCount})</span></span>
-          </button>
-          <button 
-            disabled={isGhost}
-            onClick={() => setShowCommentInput(!showCommentInput)}
-            className={`flex items-center gap-2 transition-colors ${showCommentInput ? "text-blue-400" : "hover:text-blue-500"} ${isGhost ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            <MessageSquare size={22} />
-            <span className="text-[10px] font-black uppercase">Comment</span>
           </button>
           <button className="flex items-center gap-2 hover:text-green-500 transition-colors ml-auto">
             <Send size={22} />

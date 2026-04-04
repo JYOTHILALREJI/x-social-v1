@@ -49,11 +49,15 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
       followersCount: true,
       followingCount: true,
       subscribersCount: true,
+      isPrivateAccount: true,
       creatorProfile: {
         select: {
             tier1Price: true,
+            tier1Duration: true,
             tier2Price: true,
-            tier3Price: true
+            tier2Duration: true,
+            tier3Price: true,
+            tier3Duration: true
         }
       },
       posts: {
@@ -111,15 +115,49 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
 
   const isInitialFollowing = !!followRecord;
   const initialSubscriptionTier = followRecord?.subscriptionTier || 0;
+  const followStatus = followRecord?.status || null;
+  
+  // 4b. Check for Blocks
+  const blockRecord = await prisma.block.findFirst({
+    where: {
+      OR: [
+        { blockerId: currentUserId, blockedId: profile.id },
+        { blockerId: profile.id, blockedId: currentUserId }
+      ]
+    }
+  });
+
+  if (blockRecord) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white px-6">
+        <div className="text-center space-y-4">
+          <h2 className="text-4xl font-black uppercase italic tracking-tighter text-zinc-600">User not found</h2>
+          <p className="text-zinc-500 font-medium text-sm">The user you're looking for doesn't exist.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 5. Privacy Guard: If private and not accepted follower, hide posts/reels
+  const isRestricted = profile.isPrivateAccount && profile.id !== currentUserId && followStatus !== "ACCEPTED";
+
+  const posts = isRestricted ? [] : profile.posts;
+  const reels = isRestricted ? [] : profile.reels;
 
   return (
     <PublicProfileClient 
       currentUserId={currentUserId} 
       currentUserBalance={session.user.walletBalance}
       currentIsGhost={session.user.isGhost}
-      profile={profile as any} 
+      profile={{
+        ...profile,
+        posts,
+        reels
+      } as any} 
       isInitialFollowing={isInitialFollowing} 
       initialSubscriptionTier={initialSubscriptionTier}
+      followStatus={followStatus}
+      isRestricted={isRestricted}
     />
   );
 }

@@ -12,10 +12,21 @@ export async function searchUsers(query: string, currentUserId: string) {
         { isGhost: false },
         {
           OR: [
-            { username: { contains: query, mode: 'insensitive' } },
-            { id: { contains: query, mode: 'insensitive' } },
+            { username: { contains: query, mode: "insensitive" } },
+            { id: { contains: query, mode: "insensitive" } },
           ],
         },
+        // Exclusion: Filter out users who have blocked current user OR current user has blocked them
+        {
+          blockedBy: {
+            none: { blockerId: currentUserId }
+          }
+        },
+        {
+          blocking: {
+            none: { blockedId: currentUserId }
+          }
+        }
       ],
     },
     select: {

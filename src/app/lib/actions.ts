@@ -4,7 +4,8 @@
 import { prisma } from "@/app/lib/prisma";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { UAParser } from "ua-parser-js";
 
 export async function register(formData: FormData) {
   const email = formData.get("email") as string;
@@ -46,12 +47,6 @@ export async function login(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  if (email === "admin@xsocial.com" && password === "admin123") {
-    const cookieStore = await cookies();
-    cookieStore.set("admin_session", "true", { path: "/" });
-    redirect("/admin");
-  }
-
   if (!email || !password) throw new Error("Missing credentials");
 
   const user = await prisma.user.findUnique({ where: { email } });
@@ -60,6 +55,22 @@ export async function login(formData: FormData) {
     throw new Error("Invalid credentials");
   }
 
+  if (user.twoFactorQuestion) {
+    return {
+      requiresTwoFactor: true,
+      question: user.twoFactorQuestion,
+      userId: user.id
+    };
+  }
+
+  return await createSessionAndRedirect(user.id);
+}
+
+export async function verifyTwoFactor(userId: string, answer: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.twoFactorAnswer !== answer) {
+    throw new Error("invalid answer");
+  }
   return await createSessionAndRedirect(user.id);
 }
 
@@ -67,13 +78,43 @@ async function createSessionAndRedirect(userId: string) {
   const sessionToken = crypto.randomUUID();
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-  await prisma.session.create({
+  // Extract User Agent device info
+  const reqHeaders = await headers();
+  const userAgentString = reqHeaders.get("user-agent") || "";
+  let deviceName = "Unknown Device";
+  if (userAgentString) {
+    const parser = new UAParser(userAgentString);
+    const os = parser.getOS().name || "Unknown OS";
+    const browser = parser.getBrowser().name || "Unknown Browser";
+    deviceName = `${os} • ${browser}`;
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { sessions: true } });
+  
+  const newSession = await prisma.session.create({
     data: {
       sessionToken,
       userId,
       expires,
+      device: deviceName
     },
   });
+
+  if (user?.loginAlerts) {
+    // Check if there's any active session from a different device
+    const knownDevices = new Set(user.sessions.filter(s => s.expires > new Date()).map(s => s.device));
+    if (!knownDevices.has(deviceName)) {
+      // It's a new device, push notification
+      await prisma.notification.create({
+        data: {
+          userId,
+          message: `Someone just logged into your account, is it you? Device: ${deviceName}`,
+          type: "NEW_LOGIN",
+          relatedId: newSession.id
+        }
+      });
+    }
+  }
 
   const cookieStore = await cookies();
   cookieStore.set("auth_session", sessionToken, {
@@ -85,5 +126,7 @@ async function createSessionAndRedirect(userId: string) {
   });
 
   // Next.js redirect must be called outside try/catch blocks
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (u?.role === "ADMIN") redirect("/admin");
   redirect("/feed");
 }

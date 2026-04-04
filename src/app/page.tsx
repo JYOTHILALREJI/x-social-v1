@@ -32,11 +32,11 @@ const LandingPage = () => {
 
   // Prevent "flash" of landing content while checking auth
   if (isCheckingAuth) {
-    return <div className="min-h-screen bg-black" />;
+    return <div className="min-h-screen bg-black dark-forced" />;
   }
 
   return (
-    <div className="relative min-h-screen bg-black selection:bg-[var(--primary)] selection:text-white">
+    <div className="dark-forced relative min-h-screen bg-black selection:bg-[var(--primary)] selection:text-white">
       <LandingNavbar />
       <FloatingElements />
 

@@ -7,6 +7,11 @@ import { toggleFollow } from '@/app/actions/follow';
 import { subscribeToCreator, purchaseContent } from '@/app/actions/user-actions';
 import { motion, AnimatePresence } from 'framer-motion';
 import PurchaseConfirmationModal from '@/components/PurchaseConfirmationModal';
+import BlockConfirmationModal from '@/components/BlockConfirmationModal';
+import UserStatusDot from '@/components/UserStatusDot';
+import { blockUser } from '@/app/actions/block';
+import { MoreHorizontal, UserX, Flag, Share2, UserMinus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface PublicProfileClientProps {
   currentUserId: string;
@@ -15,9 +20,9 @@ interface PublicProfileClientProps {
   profile: any;
   isInitialFollowing: boolean;
   initialSubscriptionTier: number;
+  followStatus: string | null;
+  isRestricted: boolean;
 }
-
-import { useRouter } from 'next/navigation';
 
 export default function PublicProfileClient({ 
   currentUserId, 
@@ -25,19 +30,25 @@ export default function PublicProfileClient({
   currentIsGhost,
   profile, 
   isInitialFollowing, 
-  initialSubscriptionTier 
+  initialSubscriptionTier,
+  followStatus: initialFollowStatus,
+  isRestricted
 }: PublicProfileClientProps) {
   const router = useRouter(); 
   const [activeTab, setActiveTab] = useState<'posts' | 'reels'>('posts');
   const [isFollowing, setIsFollowing] = useState(isInitialFollowing);
+  const [followStatus, setFollowStatus] = useState<string | null>(initialFollowStatus);
   const [subscriptionTier, setSubscriptionTier] = useState(initialSubscriptionTier);
   const [showUnfollowModal, setShowUnfollowModal] = useState(false);
   const [showSubModal, setShowSubModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
   const [purchasedItems, setPurchasedItems] = useState<string[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0); // For forcing media re-requests
+  const [refreshKey, setRefreshKey] = useState(0); 
   const [loadingMedia, setLoadingMedia] = useState<Record<string, boolean>>({});
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [blocking, setBlocking] = useState(false);
 
   type PendingTransaction = {
     type: 'subscribe' | 'post' | 'reel';
@@ -138,8 +149,14 @@ export default function PublicProfileClient({
       setLoading(true);
       const res = await toggleFollow(currentUserId, profile.id, false);
       if (res.success) {
-        setIsFollowing(true);
-        setFollowersCount((prev: number) => prev + 1);
+        if (res.status === "PENDING") {
+          setFollowStatus("PENDING");
+          setIsFollowing(true); // Treat pending as "following" for the button state, but status dictates text
+        } else {
+          setFollowStatus("ACCEPTED");
+          setIsFollowing(true);
+          setFollowersCount((prev: number) => prev + 1);
+        }
       }
       setLoading(false);
     }
@@ -151,14 +168,82 @@ export default function PublicProfileClient({
     const res = await toggleFollow(currentUserId, profile.id, true);
     if (res.success) {
       setIsFollowing(false);
-      setFollowersCount((prev: number) => Math.max(0, prev - 1));
+      setFollowStatus(null);
+      if (followStatus === "ACCEPTED") {
+        setFollowersCount((prev: number) => Math.max(0, prev - 1));
+      }
     }
     setLoading(false);
   };
 
+  const handleBlockAction = async () => {
+    setBlocking(true);
+    const res = await blockUser(profile.id);
+    if (res.success) {
+      router.push('/feed');
+      router.refresh();
+    } else {
+      alert(res.error || "Failed to block user");
+      setBlocking(false);
+    }
+  };
+
   return (
-    <div className="w-full min-h-screen bg-black text-white px-6 md:px-12 pt-10 pb-32">
+    <div className="w-full min-h-screen bg-black text-white px-6 md:px-12 pt-10 pb-32 relative">
       
+      {/* More Options Menu (Floating Top Right) */}
+      <div className="absolute top-8 right-6 md:top-10 md:right-10 z-50">
+        <button 
+          onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+          className="p-3 bg-zinc-900 border border-border-theme hover:bg-zinc-800 backdrop-blur-md rounded-2xl transition-all shadow-xl shadow-black/40"
+        >
+          <MoreHorizontal size={20} className="text-zinc-400 hover:text-white transition-colors" />
+        </button>
+
+        <AnimatePresence>
+          {isMoreMenuOpen && (
+            <>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsMoreMenuOpen(false)}
+                className="fixed inset-0 z-[-1]"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="absolute right-0 mt-3 w-48 bg-zinc-900 border border-border-theme rounded-2xl shadow-2xl overflow-hidden p-2"
+              >
+                <div className="space-y-1">
+                  <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 rounded-xl transition-all text-left group">
+                    <Share2 size={16} className="text-zinc-500 group-hover:text-white" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white">Share Profile</span>
+                  </button>
+                  <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 rounded-xl transition-all text-left group">
+                    <Flag size={16} className="text-zinc-500 group-hover:text-white" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white">Report User</span>
+                  </button>
+                  {currentUserId !== profile.id && (
+                    <>
+                      <div className="h-px bg-border-theme !my-2 mx-2" />
+                      <button 
+                        onClick={() => { setIsMoreMenuOpen(false); setShowBlockConfirm(true); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-500/10 rounded-xl transition-all text-left group"
+                      >
+                        <UserX size={16} className="text-red-500/60 group-hover:text-red-500" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-red-500/60 group-hover:text-red-500">Block Account</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </div>
+
       {/* --- TOP PROFILE SECTION --- */}
       <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12 border-b border-border-theme pb-12">
         {/* Profile Image */}
@@ -185,9 +270,15 @@ export default function PublicProfileClient({
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex flex-col md:flex-row md:items-center gap-4">
               <div className="flex flex-col">
-                <h1 className="text-3xl font-black italic uppercase tracking-tighter leading-none mb-1">
-                  {profile.name || profile.username}
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-3xl font-black italic uppercase tracking-tighter leading-none mb-1">
+                    {profile.name || profile.username}
+                  </h1>
+                  <UserStatusDot 
+                    lastSeen={profile.lastSeen} 
+                    isActivityStatusEnabled={profile.isActivityStatusEnabled} 
+                  />
+                </div>
                 {profile.name && (
                   <span className="text-xs font-black text-purple-500/80 uppercase tracking-widest pl-1 italic">
                     @{profile.username}
@@ -201,31 +292,39 @@ export default function PublicProfileClient({
               )}
             </div>
             
-            <div className="flex gap-3 w-full md:w-auto">
+            <div className="flex flex-wrap gap-3 w-full md:w-auto md:pr-16">
               {isCreator && (
                 <button 
                   disabled={currentIsGhost}
                   onClick={() => setShowSubModal(true)}
-                  className={`flex-1 md:flex-none px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-xs flex items-center justify-center gap-2 ${
+                  className={`flex-1 md:flex-none px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-[10px] flex items-center justify-center gap-2 ${
                     isSubscribed 
                     ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
                     : "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-500/20"
                   } ${currentIsGhost ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  <Heart size={16} className={isSubscribed ? "fill-emerald-500" : ""} />
-                  {isSubscribed ? `Tier ${subscriptionTier} Member` : "Join Family"}
+                  <Heart size={14} className={isSubscribed ? "fill-emerald-500" : ""} />
+                  {isSubscribed ? `Tier ${subscriptionTier}` : "Subscribe"}
                 </button>
               )}
               <button 
                 onClick={handleFollowAction}
                 disabled={loading || (currentIsGhost && !isFollowing)}
-                className={`flex-1 md:flex-none px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-xs ${
+                className={`flex-1 md:flex-none px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-[10px] ${
                   isFollowing 
                   ? "border border-border-theme hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-500 text-white" 
                   : "bg-zinc-900 border border-border-theme text-white hover:bg-zinc-800"
                 } ${(currentIsGhost && !isFollowing) ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : isFollowing ? "Following" : "Follow"}
+                {loading ? (
+                  <Loader2 size={14} className="animate-spin mx-auto" />
+                ) : followStatus === "PENDING" ? (
+                  "Requested"
+                ) : isFollowing ? (
+                  "Following"
+                ) : (
+                  "Follow"
+                )}
               </button>
             </div>
           </div>
@@ -268,7 +367,19 @@ export default function PublicProfileClient({
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-4">
-            {activeTab === 'posts' ? (
+            {isRestricted ? (
+              <div className="col-span-full py-32 flex flex-col items-center justify-center bg-zinc-950/30 border border-border-theme rounded-[3rem]">
+                <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-6 border border-border-theme">
+                  <Lock size={24} className="text-zinc-700" />
+                </div>
+                <h2 className="text-xl font-black uppercase italic tracking-tighter text-zinc-400 text-center px-6">
+                  This account is set as private, you can see their posts only if they follows you back
+                </h2>
+                <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-[0.2em] mt-3">
+                  Restricted Content
+                </p>
+              </div>
+            ) : activeTab === 'posts' ? (
               profile.posts && profile.posts.length > 0 ? (
                 profile.posts.map((post: any) => {
                   const unlocked = hasAccess(post);
@@ -498,22 +609,26 @@ export default function PublicProfileClient({
                         {/* TIER 1 */}
                         <SubTierCard 
                             tier={1} 
-                            title="Family Member" 
+                            title="Bronze Membership" 
                             price={profile.creatorProfile?.tier1Price || 500}
-                            icon={<Heart size={20} className="text-emerald-500" />}
+                            duration={profile.creatorProfile?.tier1Duration || 30}
+                            icon={<Heart size={20} className="text-white" />}
+                            themeColor="#CD7F32"
                             features={["Access to all Premium Posts", "Direct Messaging", "Loyalty Badge"]}
-                            onSelect={(tier: 1, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Tier 1 Membership' })}
+                            onSelect={(tier: 1, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Bronze Membership' })}
                             disabled={subscribing}
                             currentTier={subscriptionTier}
                         />
                         {/* TIER 2 */}
                         <SubTierCard 
                             tier={2} 
-                            title="Premium Fan" 
+                            title="Silver Membership" 
                             price={profile.creatorProfile?.tier2Price || 1500}
-                            icon={<Star size={20} className="text-purple-500" />}
+                            duration={profile.creatorProfile?.tier2Duration || 30}
+                            icon={<Star size={20} className="text-white" />}
+                            themeColor="#C0C0C0"
                             features={["Tier 1 Access", "Priority Support", "HD Content Unlock"]}
-                            onSelect={(tier: 2, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Tier 2 Membership' })}
+                            onSelect={(tier: 2, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Silver Membership' })}
                             disabled={subscribing}
                             currentTier={subscriptionTier}
                             highlight
@@ -521,11 +636,13 @@ export default function PublicProfileClient({
                         {/* TIER 3 */}
                         <SubTierCard 
                             tier={3} 
-                            title="Elite VIP" 
+                            title="Gold VIP" 
                             price={profile.creatorProfile?.tier3Price || 3500}
-                            icon={<Crown size={20} className="text-amber-500" />}
+                            duration={profile.creatorProfile?.tier3Duration || 30}
+                            icon={<Crown size={20} className="text-white" />}
+                            themeColor="#FFD700"
                             features={["All Previous Access", "Private Video Request", "Physical Gift Eligibility"]}
-                            onSelect={(tier: 3, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Tier 3 Membership' })}
+                            onSelect={(tier: 3, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Gold VIP Membership' })}
                             disabled={subscribing}
                             currentTier={subscriptionTier}
                         />
@@ -542,7 +659,6 @@ export default function PublicProfileClient({
         )}
       </AnimatePresence>
 
-      {/* Confirmation Modal */}
       <PurchaseConfirmationModal
         isOpen={!!pendingTransaction}
         onClose={() => setPendingTransaction(null)}
@@ -552,31 +668,70 @@ export default function PublicProfileClient({
         currentBalance={currentUserBalance}
         loading={subscribing || loading}
       />
+
+      <BlockConfirmationModal 
+        isOpen={showBlockConfirm}
+        onClose={() => setShowBlockConfirm(false)}
+        onConfirm={handleBlockAction}
+        username={profile.username}
+        loading={blocking}
+      />
+
+      {/* Unfollow Confirmation Modal */}
+      <AnimatePresence>
+        {showUnfollowModal && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-zinc-950 border border-border-theme rounded-[2rem] w-full max-w-sm shadow-2xl overflow-hidden p-10 text-center"
+            >
+               <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+                  <UserMinus size={32} className="text-red-500" />
+               </div>
+               <h3 className="text-xl font-black italic uppercase tracking-tighter text-white mb-2">Unfollow @{profile.username}?</h3>
+               <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-[0.1em] mb-8 leading-relaxed">Their posts will no longer appear in your feed. If they are private, you'll need to request to follow again.</p>
+               <div className="flex gap-4">
+                  <button onClick={() => setShowUnfollowModal(false)} className="flex-1 py-4 bg-zinc-900 border border-border-theme rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all">Cancel</button>
+                  <button onClick={confirmUnfollow} className="flex-1 py-4 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 transition-all shadow-lg shadow-red-500/20">Unfollow</button>
+               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-const SubTierCard = ({ tier, title, price, icon, features, onSelect, disabled, currentTier, highlight }: any) => {
+const SubTierCard = ({ tier, title, price, duration, icon, themeColor, features, onSelect, disabled, currentTier, highlight }: any) => {
     const isOwned = currentTier >= tier;
 
+    const durationLabel = duration > 0 && duration % 30 === 0 
+        ? `${duration / 30} ${duration / 30 === 1 ? 'month' : 'months'}`
+        : `${duration} days`;
+
     return (
-        <div className={`p-6 rounded-[2rem] border transition-all flex flex-col h-full ${highlight ? 'bg-purple-600/5 border-purple-500 shadow-xl shadow-purple-900/40' : 'bg-zinc-900/50 border-border-theme hover:border-border-theme'}`}>
+        <div 
+          className={`p-6 rounded-[2rem] border transition-all flex flex-col h-full bg-zinc-900/50 ${highlight ? 'shadow-xl' : ''}`}
+          style={{ borderColor: highlight ? themeColor : `${themeColor}40`, boxShadow: highlight ? `0 0 20px ${themeColor}20` : 'none' }}
+        >
             <div className="flex justify-between items-start mb-6">
-                <div className="p-3 bg-black rounded-2xl">{icon}</div>
-                {highlight && <span className="text-[8px] font-black uppercase tracking-widest bg-purple-600 text-white px-2 py-1 rounded-full">Popular</span>}
+                <div className="p-3 rounded-2xl" style={{ backgroundColor: themeColor }}>{icon}</div>
+                {highlight && <span className="text-[8px] font-black uppercase tracking-widest text-white px-2 py-1 rounded-full" style={{ backgroundColor: themeColor }}>Popular</span>}
             </div>
             
             <div className="flex-1">
-                <h4 className="text-sm font-black uppercase tracking-tighter mb-1">{title}</h4>
+                <h4 className="text-sm font-black uppercase tracking-tighter mb-1" style={{ color: themeColor }}>{title}</h4>
                 <div className="flex items-baseline gap-1 mb-6">
                     <span className="text-2xl font-black italic tracking-tighter text-white">${(price / 100).toFixed(2)}</span>
-                    <span className="text-[10px] font-black uppercase text-zinc-600">/mo</span>
+                    <span className="text-[10px] font-black uppercase text-zinc-600">/ {durationLabel}</span>
                 </div>
 
                 <div className="space-y-3 mb-8">
                     {features.map((f: string, i: number) => (
                         <div key={i} className="flex items-start gap-2">
-                            <Sparkles size={10} className="text-zinc-500 mt-1 shrink-0" />
+                            <Sparkles size={10} className="mt-1 shrink-0" style={{ color: themeColor }} />
                             <p className="text-[10px] font-medium text-zinc-400 leading-tight">{f}</p>
                         </div>
                     ))}
@@ -586,7 +741,8 @@ const SubTierCard = ({ tier, title, price, icon, features, onSelect, disabled, c
             <button 
                 onClick={() => onSelect(tier, price)}
                 disabled={disabled || isOwned}
-                className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isOwned ? 'bg-emerald-500/20 text-emerald-500 cursor-default' : highlight ? 'bg-white text-black hover:bg-purple-500 hover:text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-white hover:text-black'}`}
+                className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isOwned ? 'bg-emerald-500/20 text-emerald-500 cursor-default' : 'text-zinc-900 hover:scale-[1.02]'}`}
+                style={{ backgroundColor: !isOwned ? themeColor : undefined }}
             >
                 {isOwned ? "Already Owned" : "Select Plan"}
             </button>

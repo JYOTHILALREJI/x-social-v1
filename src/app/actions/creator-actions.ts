@@ -3,14 +3,22 @@
 import { prisma } from "@/app/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function updateTieredPrices(userId: string, tier1: number, tier2: number, tier3: number) {
+export async function updateTieredPrices(
+  userId: string, 
+  tier1: number, tier1Dur: number, 
+  tier2: number, tier2Dur: number, 
+  tier3: number, tier3Dur: number
+) {
   try {
     await prisma.creatorProfile.update({
       where: { userId },
       data: { 
         tier1Price: tier1,
+        tier1Duration: tier1Dur,
         tier2Price: tier2,
-        tier3Price: tier3
+        tier2Duration: tier2Dur,
+        tier3Price: tier3,
+        tier3Duration: tier3Dur
       },
     });
     revalidatePath("/profile");
