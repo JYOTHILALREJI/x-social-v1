@@ -375,4 +375,8 @@ model Message {
   mediaUrl       String?
   isRead         Boolean      @default(false)
   createdAt      DateTime     @default(now())
+  expiresAt      DateTime?
+  viewLimit      Int?
+  viewCount      Int          @default(0)
+  duration       Int?         // voice/video duration in seconds
 }

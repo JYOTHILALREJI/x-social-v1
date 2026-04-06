@@ -48,8 +48,8 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 z-50 w-full border-t border-border-theme bg-nav-bg/90 backdrop-blur-lg px-2 py-3 
-                    md:top-0 md:left-0 md:h-screen md:w-20 md:flex-col md:border-t-0 md:border-r md:py-8 lg:w-64 transition-colors duration-300">
+    <nav className="fixed bottom-0 left-0 z-[100] w-full border-t border-border-theme bg-nav-bg/90 backdrop-blur-lg px-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 
+                    md:top-0 md:left-0 md:h-[100dvh] md:w-20 md:flex-col md:border-t-0 md:border-r md:py-8 lg:w-64 transition-colors duration-300">
       <div className="flex w-full items-center justify-around md:h-full md:flex-col md:justify-start md:gap-8 lg:items-start lg:px-6">
         
         <div className="hidden mb-10 lg:block">

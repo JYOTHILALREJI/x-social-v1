@@ -1,46 +1,38 @@
-"use client";
-import { usePathname } from "next/navigation";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import Navbar from "../components/Navbar";
 import { ThemeProvider } from "@/context/ThemeContext";
+import ClientLayout from "@/components/ClientLayout";
+
+export const metadata: Metadata = {
+  title: "X-Social | Premium Social Network",
+  description: "Connect with creators and explorers in a secure, high-end social environment.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "X-Social",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "black",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  
-  // Define paths where the standard navbar and its padding should be hidden
-  const hideMainNavbar = pathname.startsWith("/admin") || pathname === "/" || pathname === "/auth";
-
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
+    <html lang="en" suppressHydrationWarning className="dark overflow-x-hidden w-full min-h-[100dvh]">
       <ThemeProvider>
         <body 
-          className="antialiased bg-background text-foreground min-h-screen overflow-x-hidden transition-colors duration-300"
+          className="antialiased bg-background text-foreground min-h-[100dvh] w-full overflow-x-hidden transition-colors duration-300"
           suppressHydrationWarning
-          onContextMenu={(e) => {
-            const target = e.target as HTMLElement;
-            if (target.tagName === 'IMG' || target.tagName === 'VIDEO' || target.closest('.no-right-click')) {
-              e.preventDefault();
-            }
-          }}
-          onDragStart={(e) => {
-            const target = e.target as HTMLElement;
-            if (target.tagName === 'IMG' || target.tagName === 'VIDEO') {
-              e.preventDefault();
-            }
-          }}
         >
-          {/* Only show main Navbar if we are NOT in Admin or Auth paths */}
-          {!hideMainNavbar && <Navbar />}
-
-          <div className={
-            hideMainNavbar 
-              ? "w-full min-h-screen" // Admin gets full width with 0 padding-left
-              : "min-h-screen md:pl-[80px] lg:pl-[256px] w-full" // Standard user pages
-          }>
-            <main className="w-full h-full">
-              {children}
-            </main>
-          </div>
+          <ClientLayout>
+            {children}
+          </ClientLayout>
         </body>
       </ThemeProvider>
     </html>

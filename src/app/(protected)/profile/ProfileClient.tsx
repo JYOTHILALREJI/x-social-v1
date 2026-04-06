@@ -153,10 +153,18 @@ const ProfileClient = ({ user, platformFee }: ProfileClientProps) => {
 
 
   return (
-    <div className="w-full min-h-screen bg-background text-foreground px-6 md:px-12 pt-10 pb-32 transition-colors duration-300">
+    <div className="w-full min-h-screen bg-background text-foreground px-6 md:px-12 pt-10 pb-32 transition-colors duration-300 relative">
       
+      {/* Mobile Settings Button - Top Right Corner of Screen */}
+      <Link 
+        href="/settings" 
+        className="lg:hidden absolute top-6 right-6 p-3 bg-card-bg hover:bg-card-hover rounded-2xl border border-border-theme transition-all z-20 shadow-xl"
+      >
+        <Settings size={22} className="text-muted-foreground" />
+      </Link>
+
       {/* --- TOP PROFILE SECTION --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] items-center lg:items-start gap-8 lg:gap-12 mb-12 border-b border-border-theme pb-12">
+      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] items-center lg:items-start gap-8 lg:gap-12 mb-12 border-b border-border-theme pb-12 relative">
         {/* Profile Image */}
           <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-card-bg border-2 border-border-theme relative overflow-hidden shrink-0 mx-auto lg:mx-0">
            <Image 
@@ -168,26 +176,32 @@ const ProfileClient = ({ user, platformFee }: ProfileClientProps) => {
         </div>
         
         {/* User Info */}
-        <div className="flex-1 space-y-2 text-center lg:text-left w-full">
-          <div className="flex items-center justify-between lg:justify-start gap-4">
-            <div className="flex flex-col">
-              <h1 className="text-4xl font-black italic uppercase tracking-tighter leading-none mb-1 text-foreground">
+        <div className="flex-1 space-y-4 text-center lg:text-left w-full relative">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-center lg:justify-start gap-4">
+            <div className="flex flex-col items-center lg:items-start">
+              <h1 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter leading-none mb-1 text-foreground">
                 {userData.name || userData.username}
               </h1>
               {userData.name && (
-                <span className="text-xs font-black text-purple-500/80 uppercase tracking-widest pl-1 italic">
+                <span className="text-xs font-black text-purple-500/80 uppercase tracking-widest italic">
                   @{userData.username}
                 </span>
               )}
             </div>
-            {isVerifiedCreator && (
-              <span className="px-3 py-1 bg-purple-500/10 text-purple-500 text-[10px] font-black uppercase rounded-full border border-purple-500/20 self-start">
-                Verified Creator
-              </span>
-            )}
             
-            {/* Settings Link */}
-            <Link href="/settings" className="p-2.5 bg-card-bg hover:bg-card-hover rounded-xl border border-border-theme transition-all self-start">
+            <div className="flex items-center gap-3">
+              {isVerifiedCreator && (
+                <span className="px-3 py-1 bg-purple-500/10 text-purple-500 text-[10px] font-black uppercase rounded-full border border-purple-500/20">
+                  Verified Creator
+                </span>
+              )}
+            </div>
+
+            {/* Settings Link - Desktop Only in this position */}
+            <Link 
+              href="/settings" 
+              className="hidden lg:flex relative p-2.5 bg-card-bg hover:bg-card-hover rounded-xl border border-border-theme transition-all"
+            >
               <Settings size={18} className="text-muted-foreground" />
             </Link>
           </div>
@@ -208,10 +222,10 @@ const ProfileClient = ({ user, platformFee }: ProfileClientProps) => {
           </p>
         </div>
 
-        {/* --- COMPACT TOPUP BAR (SINGLE ROW) --- */}
+        {/* --- RESPONSIVE TOPUP BAR --- */}
         {!isVerifiedCreator && !isPending && (
-          <div className="w-fit min-w-[340px] flex items-center gap-6 bg-background/80 border border-border-theme p-3 pl-8 rounded-full hover:border-purple-600/50 transition-all shadow-2xl shadow-black/10">
-            <div className="flex items-center gap-4 shrink-0 pr-6 border-r border-border-theme">
+          <div className="w-full md:w-fit flex flex-col md:flex-row items-center gap-4 md:gap-6 bg-background/80 border border-border-theme p-4 md:p-3 md:pl-8 rounded-[2rem] md:rounded-full hover:border-purple-600/50 transition-all shadow-2xl shadow-black/10">
+            <div className="flex items-center gap-4 shrink-0 w-full md:w-auto pb-4 md:pb-0 md:pr-6 border-b md:border-b-0 md:border-r border-border-theme">
               <div className="p-3 bg-purple-500/10 rounded-full border border-purple-500/20">
                 <Wallet size={18} className="text-purple-500" />
               </div>
@@ -223,8 +237,8 @@ const ProfileClient = ({ user, platformFee }: ProfileClientProps) => {
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              <div className="relative w-32">
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="relative flex-1 md:w-32">
                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">$</span>
                  <input 
                     type="number" 
@@ -237,7 +251,7 @@ const ProfileClient = ({ user, platformFee }: ProfileClientProps) => {
               </div>
               <button 
                 onClick={handleTopUpRequest} 
-                className="px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-purple-600/20 active:scale-95 whitespace-nowrap"
+                className="flex-1 md:flex-none px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-purple-600/20 active:scale-95 whitespace-nowrap"
               >
                 Top Up
               </button>

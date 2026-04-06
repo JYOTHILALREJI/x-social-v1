@@ -32,7 +32,7 @@
   --muted: 240 5% 60%;
 }
 
-@theme inline {
+@theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-border-theme: hsl(var(--border-theme));

@@ -207,171 +207,174 @@ export default function PublicProfileClient({
   return (
     <div className="w-full min-h-screen bg-black text-white px-6 md:px-12 pt-10 pb-32 relative">
       
-      {/* More Options Menu (Floating Top Right) */}
-      <div className="absolute top-8 right-6 md:top-10 md:right-10 z-50">
-        <button 
-          onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-          className="p-3 bg-zinc-900 border border-border-theme hover:bg-zinc-800 backdrop-blur-md rounded-2xl transition-all shadow-xl shadow-black/40"
-        >
-          <MoreHorizontal size={20} className="text-zinc-400 hover:text-white transition-colors" />
-        </button>
-
-        <AnimatePresence>
-          {isMoreMenuOpen && (
-            <>
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setIsMoreMenuOpen(false)}
-                className="fixed inset-0 z-[-1]"
-              />
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                className="absolute right-0 mt-3 w-48 bg-zinc-900 border border-border-theme rounded-2xl shadow-2xl overflow-hidden p-2"
-              >
-                <div className="space-y-1">
-                  <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 rounded-xl transition-all text-left group">
-                    <Share2 size={16} className="text-zinc-500 group-hover:text-white" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white">Share Profile</span>
-                  </button>
-                  <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 rounded-xl transition-all text-left group">
-                    <Flag size={16} className="text-zinc-500 group-hover:text-white" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white">Report User</span>
-                  </button>
-                  {currentUserId !== profile.id && (
-                    <>
-                      <div className="h-px bg-border-theme !my-2 mx-2" />
-                      <button 
-                        onClick={() => { setIsMoreMenuOpen(false); setShowBlockConfirm(true); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-500/10 rounded-xl transition-all text-left group"
-                      >
-                        <UserX size={16} className="text-red-500/60 group-hover:text-red-500" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-red-500/60 group-hover:text-red-500">Block Account</span>
-                      </button>
-                    </>
-                  )}
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-      </div>
 
       {/* --- TOP PROFILE SECTION --- */}
-      <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12 border-b border-border-theme pb-12">
-        {/* Profile Image */}
-        <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-zinc-900 border-2 border-border-theme relative overflow-hidden shrink-0 flex items-center justify-center font-black text-4xl text-zinc-600 uppercase">
-           {profile.image ? (
-             <Image 
-               src={profile.image} 
-               alt={profile.username} 
-               fill 
-               className="object-cover"
-             />
-           ) : (
-              <Image 
-               src={DEFAULT_AVATAR} 
-               alt={profile.username} 
-               fill 
-               className="object-cover"
-             />
-           )}
+      <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-10 mb-12 border-b border-border-theme pb-12">
+        {/* Profile Image & Mobile Actions Wrapper */}
+        <div className="flex flex-col items-center gap-6 w-full md:w-auto">
+          <div className="w-32 h-32 md:w-44 md:h-44 rounded-full bg-zinc-900 border-2 border-border-theme relative overflow-hidden shrink-0 flex items-center justify-center font-black text-4xl text-zinc-600 uppercase shadow-2xl">
+             {profile.image ? (
+               <Image 
+                 src={profile.image} 
+                 alt={profile.username} 
+                 fill 
+                 className="object-cover"
+               />
+             ) : (
+                <Image 
+                 src={DEFAULT_AVATAR} 
+                 alt={profile.username} 
+                 fill 
+                 className="object-cover"
+               />
+             )}
+          </div>
         </div>
         
         {/* User Info */}
-        <div className="flex-1 space-y-6 text-center md:text-left w-full">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex flex-col md:flex-row md:items-center gap-4">
+        <div className="flex-1 space-y-6 text-center md:text-left w-full max-w-full overflow-hidden">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-3xl font-black italic uppercase tracking-tighter leading-none mb-1">
+                <div className="flex items-center justify-center md:justify-start gap-2 flex-wrap">
+                  <h1 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter leading-none">
                     {profile.name || profile.username}
                   </h1>
                   <UserStatusDot 
                     lastSeen={profile.lastSeen} 
                     isActivityStatusEnabled={profile.isActivityStatusEnabled} 
                   />
+                  {isCreator && (
+                    <span className="px-3 py-1 bg-purple-500/10 text-purple-500 text-[9px] font-black uppercase rounded-full border border-purple-500/20 whitespace-nowrap">
+                      Verified
+                    </span>
+                  )}
                 </div>
                 {profile.name && (
-                  <span className="text-xs font-black text-purple-500/80 uppercase tracking-widest pl-1 italic">
+                  <span className="text-xs font-black text-purple-500/80 uppercase tracking-widest mt-1 italic">
                     @{profile.username}
                   </span>
                 )}
               </div>
-              {isCreator && (
-                <span className="px-3 py-1 bg-purple-500/10 text-purple-500 text-[10px] font-black uppercase rounded-full border border-purple-500/20 self-start mt-1">
-                  Verified Creator
-                </span>
-              )}
-            </div>
-            
-            <div className="flex flex-wrap gap-3 w-full md:w-auto md:pr-16">
-              {isCreator && (
-                <button 
-                  disabled={currentIsGhost}
-                  onClick={() => setShowSubModal(true)}
-                  className={`flex-1 md:flex-none px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-[10px] flex items-center justify-center gap-2 ${
-                    isSubscribed 
-                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
-                    : "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-500/20"
-                  } ${currentIsGhost ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  <Heart size={14} className={isSubscribed ? "fill-emerald-500" : ""} />
-                  {isSubscribed ? `Tier ${subscriptionTier}` : "Subscribe"}
-                </button>
-              )}
-              <button 
-                onClick={handleFollowAction}
-                disabled={loading || (currentIsGhost && !isFollowing)}
-                className={`flex-1 md:flex-none px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-[10px] ${
-                  isFollowing 
-                  ? "border border-border-theme hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-500 text-white" 
-                  : "bg-zinc-900 border border-border-theme text-white hover:bg-zinc-800"
-                } ${(currentIsGhost && !isFollowing) ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                {loading ? (
-                  <Loader2 size={14} className="animate-spin mx-auto" />
-                ) : followStatus === "PENDING" ? (
-                  "Requested"
-                ) : isFollowing ? (
-                  "Following"
-                ) : (
-                  "Follow"
+              
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                {isCreator && (
+                  <button 
+                    disabled={currentIsGhost}
+                    onClick={() => setShowSubModal(true)}
+                    className={`flex-1 px-8 py-3.5 rounded-2xl font-black uppercase tracking-widest transition-all text-[10px] flex items-center justify-center gap-2 ${
+                      isSubscribed 
+                      ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
+                      : "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-500/20"
+                    } ${currentIsGhost ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <Heart size={14} className={isSubscribed ? "fill-emerald-500" : ""} />
+                    {isSubscribed ? `Tier ${subscriptionTier}` : "Subscribe"}
+                  </button>
                 )}
-              </button>
-              {/* Message button for Fans visiting Creators, or Creators visiting users */}
-              {currentUserId !== profile.id && (isCreator || currentUserRole === 'CREATOR') && (
-                <button
-                  onClick={handleMessageClick}
-                  disabled={loadingMessage}
-                  className="flex-1 md:flex-none px-8 py-3 rounded-full font-black uppercase tracking-widest transition-all text-[10px] flex items-center justify-center gap-2 bg-zinc-900 border border-border-theme text-white hover:bg-zinc-800 disabled:opacity-50"
-                >
-                  {loadingMessage ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} />}
-                  Message
-                </button>
+                <div className="flex gap-2 flex-1 md:flex-none">
+                  <button 
+                    onClick={handleFollowAction}
+                    disabled={loading || (currentIsGhost && !isFollowing)}
+                    className={`flex-1 px-6 py-3.5 rounded-2xl font-black uppercase tracking-widest transition-all text-[10px] ${
+                      isFollowing 
+                      ? "border border-border-theme hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-500 text-white" 
+                      : "bg-zinc-900 border border-border-theme text-white hover:bg-zinc-800"
+                    } ${(currentIsGhost && !isFollowing) ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    {loading ? (
+                      <Loader2 size={14} className="animate-spin mx-auto" />
+                    ) : followStatus === "PENDING" ? (
+                      "Requested"
+                    ) : isFollowing ? (
+                      "Following"
+                    ) : (
+                      "Follow"
+                    )}
+                  </button>
+                  {currentUserId !== profile.id && (isCreator || currentUserRole === 'CREATOR') && (
+                    <button
+                      onClick={handleMessageClick}
+                      disabled={loadingMessage}
+                      className="px-6 py-3.5 rounded-2xl font-black uppercase tracking-widest transition-all text-[10px] flex items-center justify-center gap-2 bg-zinc-900 border border-border-theme text-white hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      {loadingMessage ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} />}
+                    </button>
+                  )}
+
+                  <div className="relative group/more">
+                    <button 
+                      onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+                      className="px-5 py-4 bg-zinc-900 border border-border-theme hover:bg-zinc-800 rounded-2xl transition-all flex items-center justify-center text-zinc-500 hover:text-white"
+                    >
+                      <MoreHorizontal size={20} />
+                    </button>
+
+                    <AnimatePresence>
+                      {isMoreMenuOpen && (
+                        <>
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsMoreMenuOpen(false)}
+                            className="fixed inset-0 z-[100]"
+                          />
+                          <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            className="absolute right-0 bottom-full mb-4 w-48 bg-zinc-900 border border-border-theme rounded-2xl shadow-2xl overflow-hidden p-2 z-[110]"
+                          >
+                            <div className="space-y-1">
+                              <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 rounded-xl transition-all text-left group">
+                                <Share2 size={16} className="text-zinc-500 group-hover:text-white" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white">Share Profile</span>
+                              </button>
+                              <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 rounded-xl transition-all text-left group">
+                                <Flag size={16} className="text-zinc-500 group-hover:text-white" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white">Report User</span>
+                              </button>
+                              {currentUserId !== profile.id && (
+                                <>
+                                  <div className="h-px bg-border-theme !my-2 mx-2" />
+                                  <button 
+                                    onClick={() => { setIsMoreMenuOpen(false); setShowBlockConfirm(true); }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-500/10 rounded-xl transition-all text-left group"
+                                  >
+                                    <UserX size={16} className="text-red-500/60 group-hover:text-red-500" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-red-500/60 group-hover:text-red-500">Block Account</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-center md:justify-start gap-8 md:gap-12 flex-wrap bg-zinc-900/20 p-6 md:p-0 rounded-[2rem] md:bg-transparent">
+              {isCreator ? (
+                <>
+                  <div className="flex flex-col items-center md:items-start"><span className="font-black text-xl italic">{profile._count?.posts || 0}</span><span className="text-zinc-500 text-[9px] uppercase font-bold tracking-widest">Posts</span></div>
+                  <div className="flex flex-col items-center md:items-start"><span className="font-black text-xl italic">{followersCount}</span><span className="text-zinc-500 text-[9px] uppercase font-bold tracking-widest">Followers</span></div>
+                  <div className="flex flex-col items-center md:items-start"><span className="font-black text-xl italic">{subscribersCount}</span><span className="text-zinc-500 text-[9px] uppercase font-bold tracking-widest">Subscribers</span></div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center md:items-start"><span className="font-black text-xl italic">{profile.followingCount || 0}</span><span className="text-zinc-500 text-[9px] uppercase font-bold tracking-widest">Following</span></div>
               )}
             </div>
-          </div>
 
-          <div className="flex justify-center md:justify-start gap-10">
-            {isCreator && (
-              <>
-                <div className="flex flex-col"><span className="font-bold text-xl">{profile._count?.posts || 0}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Posts</span></div>
-                <div className="flex flex-col"><span className="font-bold text-xl">{followersCount}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Followers</span></div>
-                <div className="flex flex-col"><span className="font-bold text-xl">{subscribersCount}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Subscribers</span></div>
-              </>
+            {profile.bio && (
+              <p className="text-zinc-400 text-sm max-w-xl leading-relaxed mx-auto md:mx-0 font-medium">
+                {profile.bio}
+              </p>
             )}
-            <div className="flex flex-col"><span className="font-bold text-xl">{profile.followingCount || 0}</span><span className="text-zinc-500 text-[10px] uppercase font-black">Following</span></div>
           </div>
-
-          {profile.bio && (
-            <p className="text-zinc-400 text-sm max-w-xl leading-relaxed mx-auto md:mx-0">
-              {profile.bio}
-            </p>
-          )}
         </div>
       </div>
 
@@ -632,47 +635,50 @@ export default function PublicProfileClient({
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
-                        {/* TIER 1 */}
-                        <SubTierCard 
-                            tier={1} 
-                            title="Bronze Membership" 
-                            price={profile.creatorProfile?.tier1Price || 500}
-                            duration={profile.creatorProfile?.tier1Duration || 30}
-                            icon={<Heart size={20} className="text-white" />}
-                            themeColor="#CD7F32"
-                            features={["Access to all Premium Posts", "Text Messaging Access", "Loyalty Badge"]}
-                            onSelect={(tier: 1, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Bronze Membership' })}
-                            disabled={subscribing}
-                            currentTier={subscriptionTier}
-                        />
-                        {/* TIER 2 */}
-                        <SubTierCard 
-                            tier={2} 
-                            title="Silver Membership" 
-                            price={profile.creatorProfile?.tier2Price || 1500}
-                            duration={profile.creatorProfile?.tier2Duration || 30}
-                            icon={<Star size={20} className="text-white" />}
-                            themeColor="#C0C0C0"
-                            features={["Bronze Access", "Voice Messaging Access", "HD Content Unlock"]}
-                            onSelect={(tier: 2, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Silver Membership' })}
-                            disabled={subscribing}
-                            currentTier={subscriptionTier}
-                            highlight
-                        />
-                        {/* TIER 3 */}
-                        <SubTierCard 
-                            tier={3} 
-                            title="Gold VIP" 
-                            price={profile.creatorProfile?.tier3Price || 3500}
-                            duration={profile.creatorProfile?.tier3Duration || 30}
-                            icon={<Crown size={20} className="text-white" />}
-                            themeColor="#FFD700"
-                            features={["Silver Access", "Camera & Media Messaging", "Private Video Request"]}
-                            onSelect={(tier: 3, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Gold VIP Membership' })}
-                            disabled={subscribing}
-                            currentTier={subscriptionTier}
-                        />
+                    <div className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory no-scrollbar pb-6 -mx-2 px-2 relative z-10">
+                        <div className="flex-shrink-0 w-[280px] md:w-full snap-center">
+                          <SubTierCard 
+                              tier={1} 
+                              title="Bronze Membership" 
+                              price={profile.creatorProfile?.tier1Price || 500}
+                              duration={profile.creatorProfile?.tier1Duration || 30}
+                              icon={<Heart size={20} className="text-white" />}
+                              themeColor="#CD7F32"
+                              features={["Access to all Premium Posts", "Text Messaging Access", "Loyalty Badge"]}
+                              onSelect={(tier: 1, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Bronze Membership' })}
+                              disabled={subscribing}
+                              currentTier={subscriptionTier}
+                          />
+                        </div>
+                        <div className="flex-shrink-0 w-[280px] md:w-full snap-center">
+                          <SubTierCard 
+                              tier={2} 
+                              title="Silver Membership" 
+                              price={profile.creatorProfile?.tier2Price || 1500}
+                              duration={profile.creatorProfile?.tier2Duration || 30}
+                              icon={<Star size={20} className="text-white" />}
+                              themeColor="#C0C0C0"
+                              features={["Bronze Access", "Voice Messaging Access", "HD Content Unlock"]}
+                              onSelect={(tier: 2, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Silver Membership' })}
+                              disabled={subscribing}
+                              currentTier={subscriptionTier}
+                              highlight
+                          />
+                        </div>
+                        <div className="flex-shrink-0 w-[280px] md:w-full snap-center">
+                          <SubTierCard 
+                              tier={3} 
+                              title="Gold VIP" 
+                              price={profile.creatorProfile?.tier3Price || 3500}
+                              duration={profile.creatorProfile?.tier3Duration || 30}
+                              icon={<Crown size={20} className="text-white" />}
+                              themeColor="#FFD700"
+                              features={["Silver Access", "Camera & Media Messaging", "Private Video Request"]}
+                              onSelect={(tier: 3, price: number) => setPendingTransaction({ type: 'subscribe', tier, amount: price, name: 'Gold VIP Membership' })}
+                              disabled={subscribing}
+                              currentTier={subscriptionTier}
+                          />
+                        </div>
                     </div>
 
                     <div className="mt-8 flex items-center justify-center gap-3 p-4 bg-zinc-950 rounded-2xl border border-border-theme">

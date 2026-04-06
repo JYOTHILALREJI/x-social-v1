@@ -155,7 +155,18 @@ export async function respondToRequest(conversationId: string, status: "ACCEPTED
   }
 }
 
-export async function sendMessage(conversationId: string, senderId: string, data: { text?: string, type?: "TEXT" | "VOICE" | "MEDIA", mediaUrl?: string }) {
+export async function sendMessage(
+  conversationId: string, 
+  senderId: string, 
+  data: { 
+    text?: string, 
+    type?: "TEXT" | "VOICE" | "MEDIA", 
+    mediaUrl?: string,
+    expiresAt?: Date,
+    viewLimit?: number,
+    duration?: number
+  }
+) {
   try {
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
@@ -204,7 +215,11 @@ export async function sendMessage(conversationId: string, senderId: string, data
         senderId,
         text: data.text,
         type: data.type || "TEXT",
-        mediaUrl: data.mediaUrl
+        mediaUrl: data.mediaUrl,
+        expiresAt: data.expiresAt,
+        viewLimit: data.viewLimit,
+        viewCount: 0,
+        duration: data.duration
       },
       include: {
         sender: { select: { id: true, username: true, image: true } }
@@ -225,7 +240,7 @@ export async function sendMessage(conversationId: string, senderId: string, data
 
 export async function getMessages(conversationId: string, skip: number = 0, take: number = 50) {
   try {
-    const messages = await prisma.message.findMany({
+    const rawMessages = await prisma.message.findMany({
       where: { conversationId },
       orderBy: { createdAt: 'desc' },
       skip,
@@ -234,9 +249,45 @@ export async function getMessages(conversationId: string, skip: number = 0, take
         sender: { select: { id: true, username: true, image: true } }
       }
     });
+
+    // Handle ephemeral logic: mask media if expired or limit reached
+    const messages = rawMessages.map(msg => {
+      const isExpired = msg.expiresAt && new Date() > msg.expiresAt;
+      const isLimitReached = msg.viewLimit && msg.viewCount >= msg.viewLimit;
+      
+      if (isExpired || isLimitReached) {
+        return { 
+          ...msg, 
+          mediaUrl: null, // Clear URL so client cannot access
+          text: (isExpired || isLimitReached) ? "Media Expired" : msg.text 
+        };
+      }
+      return msg;
+    });
+
     return { success: true, messages: messages.reverse() };
   } catch (error) {
     return { success: false, messages: [] };
+  }
+}
+
+export async function markMessageSeen(messageId: string) {
+  try {
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+      select: { viewLimit: true, viewCount: true }
+    });
+
+    if (message && message.viewLimit) {
+      await prisma.message.update({
+        where: { id: messageId },
+        data: { viewCount: { increment: 1 } }
+      });
+    }
+
+    return { success: true };
+  } catch (error) {
+    return { success: false };
   }
 }
 

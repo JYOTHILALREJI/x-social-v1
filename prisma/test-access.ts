@@ -34,7 +34,7 @@ async function testAccess() {
     const follow = await prisma.follow.findUnique({
       where: { followerId_followingId: { followerId: userId, followingId: post.authorId } }
     });
-    if (follow?.isSubscribed) return true;
+    if ((follow?.subscriptionTier || 0) > 0) return true;
 
     const purchase = await prisma.purchase.findUnique({
       where: { userId_postId: { userId, postId } }
@@ -53,8 +53,8 @@ async function testAccess() {
   // TEST 3: Fan access after following (not subscribed)
   await prisma.follow.upsert({
     where: { followerId_followingId: { followerId: fan.id, followingId: creator.id } },
-    update: { isSubscribed: false },
-    create: { followerId: fan.id, followingId: creator.id, isSubscribed: false }
+    update: { subscriptionTier: 0 },
+    create: { followerId: fan.id, followingId: creator.id, subscriptionTier: 0 }
   });
   const fanAccessFollowed = await checkAccess(fan.id, premiumPost.id);
   console.log(`✅ Fan Followed (Not Subscribed) Access: ${fanAccessFollowed} (Expected: false)`);
@@ -62,7 +62,7 @@ async function testAccess() {
   // TEST 4: Fan access after subscribing
   await prisma.follow.update({
     where: { followerId_followingId: { followerId: fan.id, followingId: creator.id } },
-    data: { isSubscribed: true }
+    data: { subscriptionTier: 1 }
   });
   const fanAccessSubscribed = await checkAccess(fan.id, premiumPost.id);
   console.log(`✅ Fan Subscribed Access: ${fanAccessSubscribed} (Expected: true)`);
@@ -70,7 +70,7 @@ async function testAccess() {
   // Reset subscription
   await prisma.follow.update({
     where: { followerId_followingId: { followerId: fan.id, followingId: creator.id } },
-    data: { isSubscribed: false }
+    data: { subscriptionTier: 0 }
   });
 
   // TEST 5: Fan access after purchase

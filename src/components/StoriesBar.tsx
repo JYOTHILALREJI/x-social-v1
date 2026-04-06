@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Plus } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
@@ -70,9 +71,15 @@ function StoryRing({
 }
 
 export default function StoriesBar({ stories, currentUserId, isCreator, onStoryCreated }: StoriesBarProps) {
+  const router = useRouter();
+  const [mounted, setMounted] = React.useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerStoryIndex, setViewerStoryIndex] = useState(0);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const openStory = (idx: number) => {
     setViewerStoryIndex(idx);
@@ -87,6 +94,11 @@ export default function StoriesBar({ stories, currentUserId, isCreator, onStoryC
   const allStories = [...(myStory ? [myStory] : []), ...otherStories];
 
   const getStoryIndex = (storyId: string) => allStories.findIndex(s => s.id === storyId);
+
+  // Prevent hydration mismatch by only rendering the dynamic story list after mount
+  if (!mounted) {
+    return <div className="w-full pb-6 border-b border-border-theme mb-8 h-[104px]" />;
+  }
 
   return (
     <>
@@ -156,7 +168,10 @@ export default function StoriesBar({ stories, currentUserId, isCreator, onStoryC
             stories={allStories}
             initialStoryIndex={viewerStoryIndex}
             currentUserId={currentUserId}
-            onClose={() => setViewerOpen(false)}
+            onClose={() => {
+              setViewerOpen(false);
+              router.refresh();
+            }}
           />
         )}
       </AnimatePresence>
