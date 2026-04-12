@@ -2,6 +2,7 @@
 
 import { prisma } from "@/app/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { socketManager } from "@/lib/socket-manager";
 
 export async function getConversations(userId: string) {
   try {
@@ -14,12 +15,15 @@ export async function getConversations(userId: string) {
         status: { in: ["ACCEPTED", "PENDING"] }
       },
       include: {
-        user1: { select: { id: true, username: true, name: true, image: true, lastSeen: true, isActivityStatusEnabled: true } },
-        user2: { select: { id: true, username: true, name: true, image: true, lastSeen: true, isActivityStatusEnabled: true } },
+        user1: { select: { id: true, username: true, name: true, image: true, lastSeen: true, isActivityStatusEnabled: true, publicKey: true } },
+        user2: { select: { id: true, username: true, name: true, image: true, lastSeen: true, isActivityStatusEnabled: true, publicKey: true } },
         messages: {
           take: 1,
           orderBy: { createdAt: 'desc' },
-          select: { text: true, createdAt: true, type: true, senderId: true, isRead: true }
+          select: { text: true, createdAt: true, type: true, senderId: true, isRead: true, encrypted: true, iv: true, mediaUrl: true }
+        },
+        _count: {
+          select: { messages: true }
         }
       },
       orderBy: { lastMessageAt: 'desc' }
@@ -55,8 +59,8 @@ export async function getMessageRequests(userId: string) {
         status: "PENDING"
       },
       include: {
-        user1: { select: { id: true, username: true, name: true, image: true } },
-        user2: { select: { id: true, username: true, name: true, image: true } },
+        user1: { select: { id: true, username: true, name: true, image: true, publicKey: true } },
+        user2: { select: { id: true, username: true, name: true, image: true, publicKey: true } },
         messages: { take: 1, orderBy: { createdAt: 'asc' } }
       },
       orderBy: { lastMessageAt: 'desc' }
@@ -144,10 +148,22 @@ export async function requestConversation(senderId: string, receiverId: string, 
 
 export async function respondToRequest(conversationId: string, status: "ACCEPTED" | "REJECTED") {
   try {
-    await prisma.conversation.update({
+    const conversation = await prisma.conversation.update({
       where: { id: conversationId },
-      data: { status }
+      data: { status },
+      select: { user1Id: true, user2Id: true }
     });
+
+    // Notify both users about the status change via Socket
+    socketManager.sendToUser(conversation.user1Id, 'conversation_updated', {
+      conversationId,
+      status,
+    });
+    socketManager.sendToUser(conversation.user2Id, 'conversation_updated', {
+      conversationId,
+      status,
+    });
+
     revalidatePath("/messages");
     return { success: true };
   } catch (error) {
@@ -164,7 +180,9 @@ export async function sendMessage(
     mediaUrl?: string,
     expiresAt?: Date,
     viewLimit?: number,
-    duration?: number
+    duration?: number,
+    encrypted?: boolean,
+    iv?: string,
   }
 ) {
   try {
@@ -219,16 +237,34 @@ export async function sendMessage(
         expiresAt: data.expiresAt,
         viewLimit: data.viewLimit,
         viewCount: 0,
-        duration: data.duration
+        duration: data.duration,
+        encrypted: data.encrypted || false,
+        iv: data.iv,
       },
       include: {
         sender: { select: { id: true, username: true, image: true } }
       }
     });
 
+    // Get sender's latest public key to pass along without extra API calls
+    const senderData = await prisma.user.findUnique({ where: { id: senderId }, select: { publicKey: true } });
+
     await prisma.conversation.update({
       where: { id: conversationId },
       data: { lastMessageAt: new Date() }
+    });
+
+    // Notify recipient via Socket
+    socketManager.sendToUser(recipientId, 'new_message', {
+      conversationId,
+      message,
+      senderPublicKey: senderData?.publicKey
+    });
+
+    // Also notify of list update
+    socketManager.sendToUser(recipientId, 'conversation_updated', {
+      conversationId,
+      lastMessageAt: new Date().toISOString(),
     });
 
     return { success: true, message };
@@ -342,6 +378,18 @@ export async function getConversationAccess(conversationId: string, userId: stri
 
 export async function markChatAsRead(conversationId: string, userId: string) {
   try {
+    // Optimization: Check if there are actually unread messages first
+    // This prevents a refresh loop in Next.js server components
+    const unreadCount = await prisma.message.count({
+      where: {
+        conversationId,
+        senderId: { not: userId },
+        isRead: false
+      }
+    });
+
+    if (unreadCount === 0) return { success: true, updated: false };
+
     await prisma.message.updateMany({
       where: {
         conversationId,
@@ -350,8 +398,105 @@ export async function markChatAsRead(conversationId: string, userId: string) {
       },
       data: { isRead: true }
     });
+
+    // Notify the sender via Socket 
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { user1Id: true, user2Id: true }
+    });
+    if (conversation) {
+      const otherUserId = conversation.user1Id === userId ? conversation.user2Id : conversation.user1Id;
+      socketManager.sendToUser(otherUserId, 'message_read', {
+        conversationId,
+        readBy: userId,
+      });
+    }
+
+    return { success: true, updated: true };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+// ==========================================
+// KEY EXCHANGE & ENCRYPTION ACTIONS
+// ==========================================
+
+/**
+ * Get a user's public key for E2EE key exchange.
+ */
+export async function getUserPublicKey(userId: string) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { publicKey: true }
+    });
+    return { success: true, publicKey: user?.publicKey || null };
+  } catch (error) {
+    return { success: false, publicKey: null };
+  }
+}
+
+/**
+ * Store the current user's public key on the server.
+ */
+export async function setUserPublicKey(userId: string, publicKeyJwk: string) {
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { publicKey: publicKeyJwk }
+    });
     return { success: true };
   } catch (error) {
     return { success: false };
+  }
+}
+
+/**
+ * Store an encrypted backup of the user's private key on the server.
+ * The key is encrypted client-side with the user's password before being sent.
+ */
+export async function setUserEncryptedBackup(userId: string, encryptedBackup: string) {
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { encryptedPrivateKey: encryptedBackup }
+    });
+    return { success: true };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+/**
+ * Get the user's encrypted private key backup (for multi-device sync).
+ */
+export async function getUserEncryptedBackup(userId: string) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { encryptedPrivateKey: true }
+    });
+    return { success: true, encryptedBackup: user?.encryptedPrivateKey || null };
+  } catch (error) {
+    return { success: false, encryptedBackup: null };
+  }
+}
+
+/**
+ * Send a typing indicator to the other user via SSE.
+ */
+export async function sendTypingIndicator(conversationId: string, userId: string) {
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { user1Id: true, user2Id: true }
+    });
+    if (!conversation) return;
+
+    const recipientId = conversation.user1Id === userId ? conversation.user2Id : conversation.user1Id;
+    socketManager.sendTypingIndicator(conversationId, userId, recipientId);
+  } catch (error) {
+    // Typing indicators are non-critical, silently fail
   }
 }

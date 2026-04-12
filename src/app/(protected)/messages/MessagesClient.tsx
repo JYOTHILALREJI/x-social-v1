@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Search, MoreVertical, Edit, CheckCheck, Send, 
   Paperclip, Smile, Mic, Video, Camera, Info, 
@@ -9,14 +9,22 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams } from 'next/navigation';
 import { subscribeToCreator } from '@/app/actions/user-actions';
-import { Sparkles, Crown, Star, Heart, RotateCw } from 'lucide-react';
+import { Sparkles, Crown, Star, Heart, RotateCw, Shield } from 'lucide-react';
 import PurchaseConfirmationModal from '@/components/PurchaseConfirmationModal';
 import { 
   getMessages, sendMessage, respondToRequest, 
   getConversations, getMessageRequests, getConversationAccess, markChatAsRead,
-  markMessageSeen
+  markMessageSeen, getUserPublicKey, setUserPublicKey, setUserEncryptedBackup,
+  sendTypingIndicator
 } from '@/app/actions/message-actions';
+import { useSocket } from '@/hooks/useSocket';
+import { encryptMessage, decryptMessage } from '@/lib/crypto';
+import { 
+  getMyKeyPair, generateAndStoreKeyPair, getConversationKey, 
+  hasKeyPair, createKeyBackup 
+} from '@/lib/key-store';
 import { formatDistanceToNow } from 'date-fns';
 
 interface MessagesClientProps {
@@ -254,6 +262,8 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
   const [previewFiles, setPreviewFiles] = useState<{url: string, type: 'photo' | 'video', isEphemeral: boolean}[]>([]);
   const [activePreviewIndex, setActivePreviewIndex] = useState(0);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const searchParams = useSearchParams();
+  const selectedChatId = searchParams.get('selected');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -262,6 +272,18 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const prevMessagesCount = useRef(messages.length);
+
+  // E2EE State
+  const [encryptionReady, setEncryptionReady] = useState(false);
+  const [showKeySetup, setShowKeySetup] = useState(false);
+  const [keyBackupPassword, setKeyBackupPassword] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const otherTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const publicKeyCache = useRef<Map<string, string>>(new Map());
+
+  // Socket Real-Time Connection
+  const { status: socketStatus, on, throttleAction, emit } = useSocket();
 
   const scrollToBottom = (force = false) => {
     if (!messagesContainerRef.current) return;
@@ -284,49 +306,265 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
     prevMessagesCount.current = messages.length;
   }, [messages]);
 
-  // Polling for new messages and conversations
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      // Refresh current chat messages if any
-      if (selectedChat) {
-        const res = await getMessages(selectedChat.id);
-        if (res.success && res.messages) setMessages(res.messages);
-      }
-      
-      // Refresh lists
-      const convRes = await getConversations(currentUser.id);
-      if (convRes.success && convRes.conversations) setConversations(convRes.conversations);
-      
-      if (currentUser.role === 'CREATOR') {
-        const reqRes = await getMessageRequests(currentUser.id);
-        if (reqRes.success && reqRes.requests) setRequests(reqRes.requests);
-      }
-    }, 5000);
+  // ==========================================
+  // HELPERS (Hoisted to avoid 'used before declaration')
+  // ==========================================
+  const getOtherUser = useCallback((chat: any) => {
+    if (!chat) return null;
+    return chat.user1Id === currentUser.id ? chat.user2 : chat.user1;
+  }, [currentUser.id]);
 
-    return () => clearInterval(interval);
-  }, [selectedChat, currentUser.id, currentUser.role]);
+  // ==========================================
+  // E2EE KEY INITIALIZATION
+  // ==========================================
+  useEffect(() => {
+    const initEncryption = async () => {
+      try {
+        const hasKeys = await hasKeyPair(currentUser.id);
+        if (!hasKeys) {
+          const publicKeyJwk = await generateAndStoreKeyPair(currentUser.id);
+          await setUserPublicKey(currentUser.id, JSON.stringify(publicKeyJwk));
+          setShowKeySetup(true);
+        } else if (!currentUser.publicKey) {
+          // If browser has keys but server lost the public key (e.g. DB wipe)
+          const myKeys = await getMyKeyPair(currentUser.id);
+          if (myKeys) {
+            const jwk = await window.crypto.subtle.exportKey("jwk", myKeys.publicKey);
+            await setUserPublicKey(currentUser.id, JSON.stringify(jwk));
+          }
+        }
+        setEncryptionReady(true);
+      } catch (err) {
+        console.error('[E2EE] Key initialization failed:', err);
+        setEncryptionReady(false);
+      }
+    };
+    initEncryption();
+  }, [currentUser.id]);
+
+  // ==========================================
+  // DECRYPTION HELPERS
+  // ==========================================
+  const decryptConversationList = useCallback(async (list: any[]) => {
+    if (!encryptionReady || !list || list.length === 0) return list;
+    
+    return await Promise.all(list.map(async (c: any) => {
+      const m = c.messages?.[0];
+      if (m && m.encrypted && m.iv && m.text) {
+        try {
+          const other = getOtherUser(c);
+          if (!other) return c;
+          
+          if (other.publicKey) {
+            const sk = await getConversationKey(currentUser.id, c.id, JSON.parse(other.publicKey));
+            if (sk) {
+              return { 
+                ...c, 
+                messages: [{ ...m, text: await decryptMessage(m.text, m.iv, sk), encrypted: false }] 
+              };
+            }
+            throw new Error("sk null");
+          }
+          throw new Error("No public key");
+        } catch (err) {
+          return {
+            ...c,
+            messages: [{ ...m, text: "[Message encrypted with previous key]", encrypted: false }]
+          };
+        }
+      }
+      return c;
+    }));
+  }, [encryptionReady, getOtherUser]);
+
+  // Decrypt conversations whenever the list changes (from props) or encryption becomes ready
+  useEffect(() => {
+    if (encryptionReady && initialConversations.length > 0) {
+      decryptConversationList(initialConversations).then(decrypted => {
+        setConversations(decrypted);
+      });
+    }
+  }, [encryptionReady, initialConversations, decryptConversationList]);
+
+  // Handle auto-selection of chat from URL query parameter
+  useEffect(() => {
+    if (selectedChatId && conversations.length > 0 && !selectedChat) {
+      const chat = conversations.find(c => c.id === selectedChatId);
+      if (chat) {
+        handleSelectChat(chat);
+      }
+    }
+  }, [selectedChatId, conversations, selectedChat]);
+
+  // ==========================================
+  // SOCKET EVENT HANDLERS
+  // ==========================================
+  useEffect(() => {
+    // Handle incoming messages
+    const unsubMessage = on('new_message', async (data: any) => {
+      // If the message is for the currently open chat, add it
+      if (selectedChat && data.conversationId === selectedChat.id) {
+        let msg = data.message;
+
+        if (msg.encrypted && msg.iv && msg.text && encryptionReady) {
+          try {
+            const senderPk = data.senderPublicKey || getOtherUser(selectedChat)?.publicKey;
+            if (senderPk) {
+              const sharedKey = await getConversationKey(
+                currentUser.id,
+                selectedChat.id,
+                JSON.parse(senderPk)
+              );
+              if (sharedKey) {
+                msg = { ...msg, text: await decryptMessage(msg.text, msg.iv, sharedKey), encrypted: false };
+              }
+            }
+          } catch (err) {
+            msg = { ...msg, text: "[Message encrypted with previous key]", encrypted: false };
+          }
+        }
+
+        setMessages(prev => [...prev, msg]);
+        throttleAction('markRead_' + selectedChat.id, async () => {
+           emit('mark_read', { conversationId: selectedChat.id });
+        }, 2000);
+      }
+
+      // Refresh list only if it's a new conversation or we aren't at the top
+      const isNewChat = !conversations.some(c => c.id === data.conversationId);
+      if (isNewChat) {
+        throttleAction('refreshConversations', async () => {
+          const convRes = await getConversations(currentUser.id);
+          if (convRes.success && convRes.conversations) {
+             const decrypted = await decryptConversationList(convRes.conversations);
+             setConversations(decrypted);
+          }
+        }, 3000);
+      } else {
+        // Just move existing chat to top and update last message locally
+        setConversations(prev => {
+          const chatIdx = prev.findIndex(c => c.id === data.conversationId);
+          if (chatIdx <= 0) return prev;
+          const newConversations = [...prev];
+          const [chat] = newConversations.splice(chatIdx, 1);
+          return [chat, ...newConversations];
+        });
+      }
+    });
+
+    // Handle updates
+    const unsubConversation = on('conversation_updated', async () => {
+      throttleAction('refreshConversations', async () => {
+        const convRes = await getConversations(currentUser.id);
+        if (convRes.success && convRes.conversations) {
+           const decrypted = await decryptConversationList(convRes.conversations);
+           setConversations(decrypted);
+        }
+      }, 5000);
+
+      if (currentUser.role === 'CREATOR') {
+        throttleAction('refreshRequests', async () => {
+          const reqRes = await getMessageRequests(currentUser.id);
+          if (reqRes.success && reqRes.requests) setRequests(reqRes.requests);
+        }, 5000);
+      }
+    });
+
+    const unsubRead = on('message_read', (data: any) => {
+      if (selectedChat && data.conversationId === selectedChat.id) {
+        setMessages(prev => prev.map(m => ({ ...m, isRead: true })));
+      }
+    });
+
+    const unsubTyping = on('typing', (data: any) => {
+      if (selectedChat && data.conversationId === selectedChat.id) {
+        setOtherUserTyping(true);
+        if (otherTypingTimeoutRef.current) clearTimeout(otherTypingTimeoutRef.current);
+        otherTypingTimeoutRef.current = setTimeout(() => setOtherUserTyping(false), 3000);
+      }
+    });
+
+    return () => {
+      unsubMessage();
+      unsubConversation();
+      unsubRead();
+      unsubTyping();
+    };
+  }, [selectedChat, currentUser.id, currentUser.role, on, encryptionReady, throttleAction, decryptConversationList, getOtherUser]);
 
   const handleSelectChat = async (chat: any) => {
+    if (selectedChat?.id === chat.id && messages.length > 0) return; // Skip if already selected and loaded
+
     setSelectedChat(chat);
     setLoadingMessages(true);
-
-    // Optimistically mark this chat as read in the sidebar
-    setConversations(prev => prev.map(c => {
-        if (c.id === chat.id && c.messages && c.messages.length > 0) {
-            return { ...c, messages: [{ ...c.messages[0], isRead: true }] };
-        }
-        return c;
-    }));
-
-    const [msgRes, accessRes] = await Promise.all([
-      getMessages(chat.id),
-      getConversationAccess(chat.id, currentUser.id),
-      markChatAsRead(chat.id, currentUser.id)
-    ]);
+    setNewMessage("");
+    setMessages([]);
     
-    if (msgRes.success && msgRes.messages) setMessages(msgRes.messages);
-    if (accessRes) setUserAccess(accessRes);
+    // Optimistically update conversations so the "New" badge disappears instantly!
+    setConversations(prev => prev.map(c => 
+      c.id === chat.id && c.messages?.[0] 
+        ? { ...c, messages: [{ ...c.messages[0], isRead: true }] } 
+        : c
+    ));
+    
+    try {
+      // 1. Fetch data & Mark read simultaneously
+      const [msgRes, accessRes] = await Promise.all([
+        getMessages(chat.id),
+        getConversationAccess(chat.id, currentUser.id)
+      ]);
+      
+      // Use pure socket for read receipt
+      emit('mark_read', { conversationId: chat.id });
+      
+      if (msgRes.success && msgRes.messages) {
+        let loadedMessages = msgRes.messages;
+        
+        // 2. Decrypt history
+        if (encryptionReady) {
+          try {
+            const otherUser = getOtherUser(chat);
+            if (otherUser && otherUser.publicKey) {
+              const sharedKey = await getConversationKey(currentUser.id, chat.id, JSON.parse(otherUser.publicKey));
+              if (sharedKey) {
+                loadedMessages = await Promise.all(loadedMessages.map(async (m: any) => {
+                  if (m.encrypted && m.iv && m.text) {
+                    try {
+                      return { ...m, text: await decryptMessage(m.text, m.iv, sharedKey), encrypted: false };
+                    } catch {
+                      return { ...m, text: "[Message encrypted with previous key]", encrypted: false };
+                    }
+                  }
+                  return m;
+                }));
+              }
+            }
+          } catch (err) {
+            console.error("[E2EE] Historical decryption failed:", err);
+          }
+        }
+        setMessages(loadedMessages);
+      }
+      
+      if (accessRes) setUserAccess(accessRes);
+    } catch (error) {
+      console.error("[Chat] Failed to load messages:", error);
+    }
     setLoadingMessages(false);
+  };
+
+  const handleTyping = () => {
+    if (!selectedChat) return;
+    const otherUser = getOtherUser(selectedChat);
+    if (!otherUser) return;
+
+    throttleAction('typing_' + selectedChat.id, async () => {
+      emit('typing', {
+        conversationId: selectedChat.id,
+        recipientId: otherUser.id,
+        isTyping: true
+      });
+    }, 2000);
   };
 
   const handleSendMessage = async (e?: React.FormEvent, customData?: any) => {
@@ -345,11 +583,45 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
         });
     }, 200);
 
-    // Add ephemeral metadata if selected
-    const payload = { 
+    // Encrypt text messages if E2EE is ready and we have a text message
+    let payload: any = { 
       ...dataToUse,
       ...((isEphemeral || customData?.isEphemeral) ? { viewLimit: 1 } : {}) 
     };
+
+    if (encryptionReady && payload.text && payload.type === 'TEXT' && selectedChat) {
+      try {
+        const otherUser = getOtherUser(selectedChat);
+        if (otherUser) {
+          let latestPk = publicKeyCache.current.get(otherUser.id);
+          
+          if (!latestPk) {
+            const freshPkRes = await getUserPublicKey(otherUser.id);
+            latestPk = freshPkRes.publicKey || otherUser.publicKey;
+            if (latestPk) publicKeyCache.current.set(otherUser.id, latestPk);
+          }
+
+          if (latestPk) {
+            const sharedKey = await getConversationKey(
+              currentUser.id,
+              selectedChat.id,
+              JSON.parse(latestPk)
+            );
+          if (sharedKey) {
+            const encrypted = await encryptMessage(payload.text, sharedKey);
+            payload = {
+              ...payload,
+              text: encrypted.ciphertext,
+              iv: encrypted.iv,
+              encrypted: true,
+            };
+          }
+          }
+        }
+      } catch (err) {
+        console.error('[E2EE] Encrypt failed, sending unencrypted:', err);
+      }
+    }
 
     const res = await sendMessage(selectedChat.id, currentUser.id, payload);
     clearInterval(progressInterval);
@@ -364,9 +636,16 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
       if (!customData) setNewMessage("");
       setIsEphemeral(false); // Reset after send
       
-      setMessages(prev => [...prev, res.message]);
-      const accessRes = await getConversationAccess(selectedChat.id, currentUser.id);
-      if (accessRes) setUserAccess(accessRes);
+      // Add the message with decrypted text for local display
+      const localMsg = res.message;
+      if (localMsg) {
+        if (localMsg.encrypted && dataToUse.text) {
+          localMsg.text = dataToUse.text; // Show plaintext locally
+        }
+        setMessages(prev => [...prev, localMsg]);
+        // Instead of a full Server Action, just increment locally
+        setUserAccess((prev: any) => ({ ...prev, messagesSent: (prev.messagesSent || 0) + 1 }));
+      }
     } else {
       alert(res.error || "Failed to send message");
     }
@@ -580,7 +859,13 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
         setRequests(prev => prev.filter(r => r.id !== requestId));
         // Force refresh conversations list
         const convRes = await getConversations(currentUser.id);
-        if (convRes.success && convRes.conversations) setConversations(convRes.conversations);
+        if (convRes.success && convRes.conversations) {
+            const decrypted = await decryptConversationList(convRes.conversations);
+            setConversations(decrypted);
+            // Auto-select the newly accepted chat
+            const chatToSelect = decrypted.find(c => c.id === requestId);
+            if (chatToSelect) handleSelectChat(chatToSelect);
+        }
       }
     }
   };
@@ -592,9 +877,6 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
     }
   };
 
-  const getOtherUser = (chat: any) => {
-    return chat.user1Id === currentUser.id ? chat.user2 : chat.user1;
-  };
 
   const filteredConversations = conversations.filter(c => {
     const other = getOtherUser(c);
@@ -663,7 +945,14 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
                         <h3 className={`font-black text-xs uppercase tracking-tight truncate ${selectedChat?.id === chat.id ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>
                           {other.name || other.username}
                         </h3>
-                        <span suppressHydrationWarning className="text-[10px] text-zinc-600 font-bold uppercase tracking-tighter shrink-0">{formatDistanceToNow(new Date(chat.lastMessageAt), { addSuffix: false })}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {lastMsg?.senderId !== currentUser.id && lastMsg?.isRead === false && selectedChat?.id !== chat.id && (
+                             <span className="bg-purple-600 text-white text-[9px] px-2 py-0.5 rounded-full font-bold shadow-lg shadow-purple-600/30">
+                               New
+                             </span>
+                          )}
+                          <span suppressHydrationWarning className="text-[10px] text-zinc-600 font-bold uppercase tracking-tighter">{formatDistanceToNow(new Date(chat.lastMessageAt), { addSuffix: false })}</span>
+                        </div>
                       </div>
                       <p className={`text-xs truncate ${selectedChat?.id === chat.id ? 'text-zinc-400' : 'text-zinc-500'}`}>
                         {lastMsg ? (lastMsg.type === 'TEXT' ? lastMsg.text : lastMsg.type === 'VOICE' ? '🎤 Voice message' : '📷 Image/Video') : "Start chatting..."}
@@ -756,10 +1045,43 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
               </div>
             </div>
 
+            {/* Encryption Status Badge + Typing Indicator */}
+            <div className="px-6 flex items-center gap-3">
+              {encryptionReady && (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                  <Shield size={10} className="text-emerald-500" />
+                  <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500">End-to-End Encrypted</span>
+                </div>
+              )}
+              {socketStatus === 'connected' && (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-[8px] font-black uppercase tracking-widest text-green-500">Live</span>
+                </div>
+              )}
+              <AnimatePresence>
+                {otherUserTyping && (
+                  <motion.div 
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    className="flex items-center gap-2 px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full"
+                  >
+                    <div className="flex gap-1">
+                      <div className="w-1 h-1 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <div className="w-1 h-1 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="w-1 h-1 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-purple-400">Typing</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Messages Area */}
             <div 
               ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 no-scrollbar pb-10 bg-[url('/mesh-gradient.png')] bg-no-repeat bg-cover bg-fixed scroll-smooth"
+              className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 no-scrollbar pb-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black bg-no-repeat bg-cover bg-fixed scroll-smooth"
             >
               {loadingMessages ? (
                   <div className="flex items-center justify-center h-full">
@@ -886,7 +1208,10 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
                         <input 
                           type="text"
                           value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
+                          onChange={(e) => {
+                            setNewMessage(e.target.value);
+                            handleTyping();
+                          }}
                           placeholder="Write message..."
                           className="w-full bg-zinc-900/50 border border-border-theme rounded-[1.5rem] md:rounded-[2rem] py-3 md:py-4 px-4 sm:px-12 md:px-14 lg:pr-48 md:pr-40 pr-32 focus:outline-none focus:ring-1 focus:ring-zinc-600 text-[13px] md:text-sm font-medium transition-all"
                         />

@@ -197,7 +197,7 @@ export default function PublicProfileClient({
     setLoadingMessage(true);
     const res = await requestConversation(currentUserId, profile.id);
     if (res.success) {
-      router.push('/messages');
+      router.push(`/messages?selected=${res.conversationId}`);
     } else {
       alert("Failed to initialize conversation.");
       setLoadingMessage(false);

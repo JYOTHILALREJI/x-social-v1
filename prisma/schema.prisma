@@ -32,6 +32,8 @@ model User {
   loginAlerts             Boolean          @default(false)
   autoplayVideos          Boolean          @default(true)
   mutedWords              String[]         @default([])
+  publicKey               String?
+  encryptedPrivateKey     String?
   createdAt               DateTime         @default(now())
   followersCount          Int              @default(0)
   followingCount          Int              @default(0)
@@ -362,6 +364,9 @@ model Conversation {
   messages        Message[]
 
   @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+  @@index([lastMessageAt])
 }
 
 model Message {
@@ -374,9 +379,14 @@ model Message {
   type           String       @default("TEXT") // TEXT, VOICE, MEDIA
   mediaUrl       String?
   isRead         Boolean      @default(false)
+  encrypted      Boolean      @default(false)
+  iv             String?
   createdAt      DateTime     @default(now())
   expiresAt      DateTime?
   viewLimit      Int?
   viewCount      Int          @default(0)
   duration       Int?         // voice/video duration in seconds
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
 }

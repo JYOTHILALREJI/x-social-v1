@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Navbar from "./Navbar";
+import { SocketProvider } from "@/hooks/useSocket";
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -10,7 +11,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const hideMainNavbar = pathname.startsWith("/admin") || pathname === "/" || pathname === "/auth";
 
   return (
-    <>
+    <SocketProvider>
       {/* Only show main Navbar if we are NOT in Admin or Auth paths */}
       {!hideMainNavbar && <Navbar />}
 
@@ -37,6 +38,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           {children}
         </main>
       </div>
-    </>
+    </SocketProvider>
   );
 }

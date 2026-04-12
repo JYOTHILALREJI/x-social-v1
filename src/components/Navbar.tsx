@@ -5,13 +5,17 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getSessionUserId, getUnreadNotificationCount } from '@/app/actions/security-actions';
+import { useSocket } from '@/hooks/useSocket';
 
 const Navbar = () => {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
+  const { on, throttleAction } = useSocket();
 
   useEffect(() => {
+    let hasInitiallyChecked = false;
     const checkNotifications = async () => {
+      // Avoid redundant checks if we just did one (simple client-side throttle)
       const userId = await getSessionUserId();
       if (userId) {
         const res = await getUnreadNotificationCount(userId);
@@ -21,18 +25,30 @@ const Navbar = () => {
       }
     };
 
-    checkNotifications();
+    // Initial check (only once per mount)
+    if (!hasInitiallyChecked) {
+      checkNotifications();
+      hasInitiallyChecked = true;
+    }
     
+    // Listen for real-time notification events via SSE
+    const unsubNotification = on('notification', () => {
+      checkNotifications(); 
+    });
+
+    const unsubMessage = on('new_message', () => {
+      checkNotifications();
+    });
+
     const handleUpdate = () => checkNotifications();
     window.addEventListener('notifications-updated', handleUpdate);
     
-    // Poll every 15 seconds to keep it fresh
-    const interval = setInterval(checkNotifications, 15000);
     return () => {
-      clearInterval(interval);
       window.removeEventListener('notifications-updated', handleUpdate);
+      unsubNotification();
+      unsubMessage();
     };
-  }, []);
+  }, [on]);
 
   if (pathname === '/' || pathname === '/auth') return null;
 
@@ -82,4 +98,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar;
+export default Navbar;

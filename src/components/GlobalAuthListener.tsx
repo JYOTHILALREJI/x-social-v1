@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, X } from 'lucide-react';
 import { getUnreadLoginAlerts, markNotificationRead, revokeSession } from '@/app/actions/security-actions';
+import { useSocket } from '@/hooks/useSocket';
 
 interface GlobalAuthListenerProps {
   userId: string;
@@ -11,9 +12,9 @@ interface GlobalAuthListenerProps {
 
 export default function GlobalAuthListener({ userId }: GlobalAuthListenerProps) {
   const [alerts, setAlerts] = useState<any[]>([]);
+  const { on, throttleAction } = useSocket();
 
   useEffect(() => {
-    // Poll every 10 seconds for new alerts
     const fetchAlerts = async () => {
       const res = await getUnreadLoginAlerts(userId);
       if (res.success && res.alerts && res.alerts.length > 0) {
@@ -21,10 +22,18 @@ export default function GlobalAuthListener({ userId }: GlobalAuthListenerProps) 
       }
     };
 
-    fetchAlerts();
-    const interval = setInterval(fetchAlerts, 10000);
-    return () => clearInterval(interval);
-  }, [userId]);
+    // Use shared throttle from context (30s)
+    throttleAction('fetchAlerts', fetchAlerts);
+
+    // Listen for real-time security alerts via SSE (always bypasses throttle)
+    const unsubNotification = on('notification', () => {
+      fetchAlerts();
+    });
+
+    return () => {
+      unsubNotification();
+    };
+  }, [userId, on]);
 
   const handleRevoke = async (notificationId: string, relatedId: string | null) => {
     if (relatedId) {
