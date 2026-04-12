@@ -10,7 +10,7 @@ interface SocketActionsContextValue {
   on: (event: string, listener: SocketListener) => () => void;
   off: (event: string) => void;
   throttleAction: (actionName: string, action: () => Promise<void>, delay?: number) => Promise<void>;
-  emit: (event: string, data: any) => void;
+  emit: (event: string, data: any, callback?: (response: any) => void) => void;
 }
 
 interface SocketStatusContextValue {
@@ -110,9 +110,13 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     await action();
   }, []);
 
-  const emit = useCallback((event: string, data: any) => {
+  const emit = useCallback((event: string, data: any, callback?: (response: any) => void) => {
     if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit(event, data);
+      if (callback) {
+        socketRef.current.emit(event, data, callback);
+      } else {
+        socketRef.current.emit(event, data);
+      }
     }
   }, []);
 

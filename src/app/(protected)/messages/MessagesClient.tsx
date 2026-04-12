@@ -14,10 +14,7 @@ import { subscribeToCreator } from '@/app/actions/user-actions';
 import { Sparkles, Crown, Star, Heart, RotateCw, Shield } from 'lucide-react';
 import PurchaseConfirmationModal from '@/components/PurchaseConfirmationModal';
 import { 
-  getMessages, sendMessage, respondToRequest, 
-  getConversations, getMessageRequests, getConversationAccess, markChatAsRead,
-  markMessageSeen, getUserPublicKey, setUserPublicKey, setUserEncryptedBackup,
-  sendTypingIndicator
+   respondToRequest, markMessageSeen, setUserEncryptedBackup
 } from '@/app/actions/message-actions';
 import { useSocket } from '@/hooks/useSocket';
 import { encryptMessage, decryptMessage } from '@/lib/crypto';
@@ -323,14 +320,14 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
         const hasKeys = await hasKeyPair(currentUser.id);
         if (!hasKeys) {
           const publicKeyJwk = await generateAndStoreKeyPair(currentUser.id);
-          await setUserPublicKey(currentUser.id, JSON.stringify(publicKeyJwk));
+          emit('set_public_key', { publicKeyJwk: JSON.stringify(publicKeyJwk) });
           setShowKeySetup(true);
         } else if (!currentUser.publicKey) {
           // If browser has keys but server lost the public key (e.g. DB wipe)
           const myKeys = await getMyKeyPair(currentUser.id);
           if (myKeys) {
             const jwk = await window.crypto.subtle.exportKey("jwk", myKeys.publicKey);
-            await setUserPublicKey(currentUser.id, JSON.stringify(jwk));
+            emit('set_public_key', { publicKeyJwk: JSON.stringify(jwk) });
           }
         }
         setEncryptionReady(true);
@@ -434,11 +431,12 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
       const isNewChat = !conversations.some(c => c.id === data.conversationId);
       if (isNewChat) {
         throttleAction('refreshConversations', async () => {
-          const convRes = await getConversations(currentUser.id);
-          if (convRes.success && convRes.conversations) {
-             const decrypted = await decryptConversationList(convRes.conversations);
-             setConversations(decrypted);
-          }
+          emit('get_conversations', {}, async (convRes: any) => {
+            if (convRes.success && convRes.conversations) {
+               const decrypted = await decryptConversationList(convRes.conversations);
+               setConversations(decrypted);
+            }
+          });
         }, 3000);
       } else {
         // Just move existing chat to top and update last message locally
@@ -455,17 +453,19 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
     // Handle updates
     const unsubConversation = on('conversation_updated', async () => {
       throttleAction('refreshConversations', async () => {
-        const convRes = await getConversations(currentUser.id);
-        if (convRes.success && convRes.conversations) {
-           const decrypted = await decryptConversationList(convRes.conversations);
-           setConversations(decrypted);
-        }
+        emit('get_conversations', {}, async (convRes: any) => {
+          if (convRes.success && convRes.conversations) {
+             const decrypted = await decryptConversationList(convRes.conversations);
+             setConversations(decrypted);
+          }
+        });
       }, 5000);
 
       if (currentUser.role === 'CREATOR') {
         throttleAction('refreshRequests', async () => {
-          const reqRes = await getMessageRequests(currentUser.id);
-          if (reqRes.success && reqRes.requests) setRequests(reqRes.requests);
+          emit('get_requests', {}, (reqRes: any) => {
+            if (reqRes.success && reqRes.requests) setRequests(reqRes.requests);
+          });
         }, 5000);
       }
     });
@@ -508,49 +508,52 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
     ));
     
     try {
-      // 1. Fetch data & Mark read simultaneously
-      const [msgRes, accessRes] = await Promise.all([
-        getMessages(chat.id),
-        getConversationAccess(chat.id, currentUser.id)
-      ]);
+      // 1. Fetch data & Access via SOCKET (Zero POST)
+      emit('get_history', { conversationId: chat.id }, (msgRes: any) => {
+        if (msgRes.success && msgRes.messages) {
+          let loadedMessages = msgRes.messages;
+          
+          // 2. Decrypt history
+          if (encryptionReady) {
+            const otherUser = getOtherUser(chat);
+            if (otherUser && otherUser.publicKey) {
+              getConversationKey(currentUser.id, chat.id, JSON.parse(otherUser.publicKey)).then(sharedKey => {
+                if (sharedKey) {
+                  Promise.all(loadedMessages.map(async (m: any) => {
+                    if (m.encrypted && m.iv && m.text) {
+                      try {
+                        return { ...m, text: await decryptMessage(m.text, m.iv, sharedKey), encrypted: false };
+                      } catch {
+                        return { ...m, text: "[Message encrypted with previous key]", encrypted: false };
+                      }
+                    }
+                    return m;
+                  })).then(setMessages);
+                } else {
+                  setMessages(loadedMessages);
+                }
+              });
+            } else {
+              setMessages(loadedMessages);
+            }
+          } else {
+            setMessages(loadedMessages);
+          }
+        }
+        setLoadingMessages(false);
+      });
+
+      emit('get_access', { conversationId: chat.id }, (accessRes: any) => {
+        if (accessRes) setUserAccess(accessRes);
+      });
       
       // Use pure socket for read receipt
       emit('mark_read', { conversationId: chat.id });
       
-      if (msgRes.success && msgRes.messages) {
-        let loadedMessages = msgRes.messages;
-        
-        // 2. Decrypt history
-        if (encryptionReady) {
-          try {
-            const otherUser = getOtherUser(chat);
-            if (otherUser && otherUser.publicKey) {
-              const sharedKey = await getConversationKey(currentUser.id, chat.id, JSON.parse(otherUser.publicKey));
-              if (sharedKey) {
-                loadedMessages = await Promise.all(loadedMessages.map(async (m: any) => {
-                  if (m.encrypted && m.iv && m.text) {
-                    try {
-                      return { ...m, text: await decryptMessage(m.text, m.iv, sharedKey), encrypted: false };
-                    } catch {
-                      return { ...m, text: "[Message encrypted with previous key]", encrypted: false };
-                    }
-                  }
-                  return m;
-                }));
-              }
-            }
-          } catch (err) {
-            console.error("[E2EE] Historical decryption failed:", err);
-          }
-        }
-        setMessages(loadedMessages);
-      }
-      
-      if (accessRes) setUserAccess(accessRes);
     } catch (error) {
       console.error("[Chat] Failed to load messages:", error);
+      setLoadingMessages(false);
     }
-    setLoadingMessages(false);
   };
 
   const handleTyping = () => {
@@ -585,6 +588,7 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
 
     // Encrypt text messages if E2EE is ready and we have a text message
     let payload: any = { 
+      conversationId: selectedChat.id,
       ...dataToUse,
       ...((isEphemeral || customData?.isEphemeral) ? { viewLimit: 1 } : {}) 
     };
@@ -596,9 +600,15 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
           let latestPk = publicKeyCache.current.get(otherUser.id);
           
           if (!latestPk) {
-            const freshPkRes = await getUserPublicKey(otherUser.id);
-            latestPk = freshPkRes.publicKey || otherUser.publicKey;
-            if (latestPk) publicKeyCache.current.set(otherUser.id, latestPk);
+            // Fetch PK via Socket (Zero POST)
+            emit('get_public_key', { targetUserId: otherUser.id }, async (pkRes: any) => {
+              if (pkRes.success && pkRes.publicKey) {
+                publicKeyCache.current.set(otherUser.id, pkRes.publicKey);
+                // Recursive call or just continue if we have it? 
+                // For now, assume it's rare to not have it in cache if we are already chatting.
+              }
+            });
+            latestPk = otherUser.publicKey; // Fallback to prop
           }
 
           if (latestPk) {
@@ -607,15 +617,15 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
               selectedChat.id,
               JSON.parse(latestPk)
             );
-          if (sharedKey) {
-            const encrypted = await encryptMessage(payload.text, sharedKey);
-            payload = {
-              ...payload,
-              text: encrypted.ciphertext,
-              iv: encrypted.iv,
-              encrypted: true,
-            };
-          }
+            if (sharedKey) {
+              const encrypted = await encryptMessage(payload.text, sharedKey);
+              payload = {
+                ...payload,
+                text: encrypted.ciphertext,
+                iv: encrypted.iv,
+                encrypted: true,
+              };
+            }
           }
         }
       } catch (err) {
@@ -623,33 +633,32 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
       }
     }
 
-    const res = await sendMessage(selectedChat.id, currentUser.id, payload);
-    clearInterval(progressInterval);
-    setUploadProgress(100);
-    
-    setTimeout(() => {
-        setUploadProgress(0);
-        setSending(false);
-    }, 500);
-
-    if (res.success) {
-      if (!customData) setNewMessage("");
-      setIsEphemeral(false); // Reset after send
+    // Send via Socket (Zero POST)
+    emit('send_message', payload, (res: any) => {
+      clearInterval(progressInterval);
+      setUploadProgress(100);
       
-      // Add the message with decrypted text for local display
-      const localMsg = res.message;
-      if (localMsg) {
-        if (localMsg.encrypted && dataToUse.text) {
-          localMsg.text = dataToUse.text; // Show plaintext locally
+      setTimeout(() => {
+          setUploadProgress(0);
+          setSending(false);
+      }, 500);
+
+      if (res.success) {
+        if (!customData) setNewMessage("");
+        setIsEphemeral(false); 
+        
+        const localMsg = res.message;
+        if (localMsg) {
+          if (localMsg.encrypted && dataToUse.text) {
+            localMsg.text = dataToUse.text; 
+          }
+          setMessages(prev => [...prev, localMsg]);
+          setUserAccess((prev: any) => ({ ...prev, messagesSent: (prev.messagesSent || 0) + 1 }));
         }
-        setMessages(prev => [...prev, localMsg]);
-        // Instead of a full Server Action, just increment locally
-        setUserAccess((prev: any) => ({ ...prev, messagesSent: (prev.messagesSent || 0) + 1 }));
+      } else {
+        alert(res.error || "Failed to send message");
       }
-    } else {
-      alert(res.error || "Failed to send message");
-    }
-    setSending(false);
+    });
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -840,9 +849,10 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
       setSubscribing(true);
       const res = await subscribeToCreator(currentUser.id, getOtherUser(selectedChat).id, tier, amount);
       if (res.success) {
-          // Update local access
-          const accessRes = await getConversationAccess(selectedChat.id, currentUser.id);
-          if (accessRes) setUserAccess(accessRes);
+          // Update local access via SOCKET (Zero POST)
+          emit('get_access', { conversationId: selectedChat.id }, (accessRes: any) => {
+            if (accessRes) setUserAccess(accessRes);
+          });
           setPendingSub(null);
       } else {
           alert(res.error || "Failed to subscribe.");
@@ -857,15 +867,16 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
       const accepted = requests.find(r => r.id === requestId);
       if (accepted) {
         setRequests(prev => prev.filter(r => r.id !== requestId));
-        // Force refresh conversations list
-        const convRes = await getConversations(currentUser.id);
-        if (convRes.success && convRes.conversations) {
-            const decrypted = await decryptConversationList(convRes.conversations);
-            setConversations(decrypted);
-            // Auto-select the newly accepted chat
-            const chatToSelect = decrypted.find(c => c.id === requestId);
-            if (chatToSelect) handleSelectChat(chatToSelect);
-        }
+        // Force refresh conversations list via SOCKET (Zero POST)
+        emit('get_conversations', {}, async (convRes: any) => {
+          if (convRes.success && convRes.conversations) {
+              const decrypted = await decryptConversationList(convRes.conversations);
+              setConversations(decrypted);
+              // Auto-select the newly accepted chat
+              const chatToSelect = decrypted.find((c: any) => c.id === requestId);
+              if (chatToSelect) handleSelectChat(chatToSelect);
+          }
+        });
       }
     }
   };

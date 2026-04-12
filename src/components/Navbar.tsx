@@ -4,25 +4,22 @@ import { Home, Search, PlayCircle, User, MessageCircle, Heart, Sparkles, BellRin
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { getSessionUserId, getUnreadNotificationCount } from '@/app/actions/security-actions';
 import { useSocket } from '@/hooks/useSocket';
 
 const Navbar = () => {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
-  const { on, throttleAction } = useSocket();
+  const { on, throttleAction, emit } = useSocket();
 
   useEffect(() => {
     let hasInitiallyChecked = false;
     const checkNotifications = async () => {
       // Avoid redundant checks if we just did one (simple client-side throttle)
-      const userId = await getSessionUserId();
-      if (userId) {
-        const res = await getUnreadNotificationCount(userId);
+      emit('get_unread_notifications', {}, (res: any) => {
         if (res.success) {
           setUnreadCount(res.count);
         }
-      }
+      });
     };
 
     // Initial check (only once per mount)
