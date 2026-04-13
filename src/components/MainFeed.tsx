@@ -4,6 +4,7 @@ import { prisma } from "@/app/lib/prisma";
 import StoriesBar from './StoriesBar';
 import SuggestedCreators from './SuggestedCreators';
 import PostCard from './PostCard'; 
+import FeedClient from './FeedClient';
 import Link from 'next/link';
 import { Users } from 'lucide-react';
 import { getStoriesForFeed } from '@/app/actions/story-actions';
@@ -202,27 +203,16 @@ const MainFeed = async () => {
           <div className="h-1 w-20 bg-purple-600 mt-4 rounded-full" />
         </header>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-12">
-          {posts.map((post: any, index: number) => (
-            <React.Fragment key={post.id}>
-              <PostCard 
-                post={post} 
-                isSubscribed={subscriptions.includes(post.authorId)} 
-                currentUserId={userId}
-                currentUserBalance={user?.walletBalance || 0}
-                isGhost={user?.isGhost || false}
-              />
-              
-              {/* INJECT SUGGESTED SECTION after 2 posts */}
-              {index === 1 && suggested.length > 0 && (
-                <SuggestedCreators 
-                  suggested={suggested} 
-                  currentUserId={userId} 
-                />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
+        <FeedClient 
+          initialPosts={posts}
+          initialCursor={posts.length > 0 ? posts[posts.length - 1].createdAt : null}
+          currentUserId={userId}
+          currentUserBalance={user?.walletBalance || 0}
+          isGhost={user?.isGhost || false}
+          subscriptions={subscriptions}
+          suggested={suggested}
+        />
+
       </div>
     </div>
   );

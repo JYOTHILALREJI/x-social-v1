@@ -3,10 +3,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import PublicProfileClient from "./PublicProfileClient";
 
-export default async function PublicProfilePage({ params }: { params: { id: string } }) {
-  // Await params for next.js 15+ compatibility
-  const resolvedParams = await Promise.resolve(params);
-  const targetUserId = resolvedParams.id;
+export default async function PublicProfilePage(props: { params: Promise<{ username: string }> }) {
+  const params = await props.params;
+  const targetUsername = params.username;
   
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get('auth_session')?.value;
@@ -19,7 +18,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
   const session = await prisma.session.findUnique({
     where: { sessionToken },
     include: {
-      user: { select: { id: true, walletBalance: true, isGhost: true, role: true } }
+      user: { select: { id: true, username: true, walletBalance: true, isGhost: true, role: true } }
     }
   });
 
@@ -28,15 +27,16 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
   }
 
   const currentUserId = session.user.id;
+  const currentUserUsername = session.user.username;
 
   // 2. If it's the current user's profile, redirect to their own profile page
-  if (currentUserId === targetUserId) {
+  if (currentUserUsername === targetUsername) {
     redirect("/profile");
   }
 
   // 3. Fetch the requested profile
   const profile = await prisma.user.findUnique({
-    where: { id: targetUserId },
+    where: { username: targetUsername },
     select: {
       id: true,
       username: true,

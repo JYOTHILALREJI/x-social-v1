@@ -190,7 +190,7 @@ export default function FollowersPanel({ isOpen, defaultTab, creatorId, onClose 
                     <div key={u.id} className="flex items-center gap-3 px-6 py-4 hover:bg-zinc-900/50 transition-all group">
                       {/* Avatar + Name → Profile Link */}
                       <Link
-                        href={`/profile/${u.id}`}
+                        href={`/profile/${u.username}`}
                         onClick={onClose}
                         className="flex items-center gap-3 flex-1 min-w-0 group/link"
                       >

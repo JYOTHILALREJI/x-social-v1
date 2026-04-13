@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useSocket } from '@/hooks/useSocket';
 import { 
   Loader2, Music, MessageCircle, 
   Lock, Play, ArrowBigUp, Volume2, VolumeX,
@@ -10,7 +11,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import ReelComments from './ReelComments';
-import { toggleReelLike, toggleReelUpvote, getReelStats } from '@/app/actions/reel-actions';
 import { purchaseContent } from '@/app/actions/user-actions';
 import PurchaseConfirmationModal from './PurchaseConfirmationModal';
 import { useRouter } from 'next/navigation';
@@ -64,6 +64,9 @@ const ReelsView = ({ initialData, currentUserId, currentUserBalance }: ReelsView
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [showCommentId, setShowCommentId] = useState<string | null>(null);
+  const [bufferingMap, setBufferingMap] = useState<{ [key: string]: boolean }>({});
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
 
   // Premium / Purchase State
   const [unlockedReelIds, setUnlockedReelIds] = useState<Set<string>>(new Set());
@@ -71,14 +74,64 @@ const ReelsView = ({ initialData, currentUserId, currentUserBalance }: ReelsView
   const [selectedReel, setSelectedReel] = useState<ReelData | null>(null);
   const [unlocking, setUnlocking] = useState(false);
   const router = useRouter();
+  const { emit, status } = useSocket();
+  const [isLargeScreen, setIsLargeScreen] = useState(false);
+
+  // Layout Detection
+  useEffect(() => {
+    const checkScreen = () => setIsLargeScreen(window.innerWidth >= 1024);
+    checkScreen();
+    window.addEventListener('resize', checkScreen);
+    return () => window.removeEventListener('resize', checkScreen);
+  }, []);
+
+  // Socket-based Stats Fetcher (Zero POST)
+  const fetchReelStats = useCallback((reelId: string, index: number) => {
+    if (status !== 'connected') return;
+    emit('get_reel_stats', { reelId }, (res: any) => {
+      if (res.success && res.stats) {
+        setReels(prev => {
+          const next = [...prev];
+          if (next[index]) {
+            next[index] = { ...next[index], ...res.stats };
+          }
+          return next;
+        });
+      }
+    });
+  }, [emit, status]);
+
+  // Infinite Scroll Batch Fetcher (Socket.io)
+  const loadMoreReels = useCallback(() => {
+    if (loading || !hasMore || status !== 'connected') return;
+
+    setLoading(true);
+    emit('get_reels', { page, limit: 10 }, (response: any) => {
+      if (response.success && response.reels) {
+        setReels(prev => {
+          const existingIds = new Set(prev.map(r => r.id));
+          const newReels = response.reels.filter((r: any) => !existingIds.has(r.id));
+          return [...prev, ...newReels];
+        });
+        setPage(p => p + 1);
+        setHasMore(response.hasMore);
+      }
+      setLoading(false);
+    });
+  }, [page, hasMore, loading, status, emit]);
 
   // Sync Video Playback
   useEffect(() => {
     const activeReelId = reels[currentIndex]?.id;
-    Object.keys(videoRefs.current).forEach(id => {
-      const video = videoRefs.current[id];
+    if (!activeReelId) return;
+
+    // Determine the active ref key based on screen size
+    const activeRefKey = `${isLargeScreen ? 'desktop' : 'mobile'}-${activeReelId}`;
+
+    Object.keys(videoRefs.current).forEach(key => {
+      const video = videoRefs.current[key];
       if (video) {
-        if (id === activeReelId && isPlaying) {
+        if (key === activeRefKey && isPlaying) {
           video.play().catch(e => {
             console.log("Autoplay blocked", e);
             setIsPlaying(false);
@@ -88,7 +141,12 @@ const ReelsView = ({ initialData, currentUserId, currentUserBalance }: ReelsView
         }
       }
     });
-  }, [currentIndex, isPlaying, reels]);
+
+    // Handle Infinite Scroll Trigger
+    if (currentIndex >= reels.length - 3 && hasMore) {
+      loadMoreReels();
+    }
+  }, [currentIndex, isPlaying, reels, hasMore, loadMoreReels, isLargeScreen]);
 
   const handleScroll = () => {
     if (!containerRef.current) return;
@@ -102,51 +160,50 @@ const ReelsView = ({ initialData, currentUserId, currentUserBalance }: ReelsView
     }
   };
 
-  const fetchReelStats = async (reelId: string, index: number) => {
-    const res = await getReelStats(reelId, currentUserId);
-    if (res.success && res.stats) {
-      setReels(prev => {
-        const next = [...prev];
-        next[index] = { ...next[index], ...res.stats };
-        return next;
-      });
-    }
-  };
-
   useEffect(() => {
-     if (reels[0]) fetchReelStats(reels[0].id, 0);
-  }, []);
+     if (reels[0] && typeof reels[0].likesCount === 'undefined') {
+       fetchReelStats(reels[0].id, 0);
+     }
+  }, [fetchReelStats, reels]);
 
-  const toggleLike = async (reelId: string, index: number) => {
-    const res = await toggleReelLike(currentUserId, reelId);
-    if (res.success) {
-      setReels(prev => {
-        const next = [...prev];
-        const item = next[index];
-        next[index] = { 
-          ...item, 
-          isLiked: res.isLiked, 
-          likesCount: (item.likesCount || 0) + (res.isLiked ? 1 : -1) 
-        };
-        return next;
-      });
-    }
+  const toggleLike = (reelId: string, index: number) => {
+    if (status !== 'connected') return;
+    emit('reel_like', { reelId }, (res: any) => {
+      if (res.success) {
+        setReels(prev => {
+          const next = [...prev];
+          const item = next[index];
+          if (item) {
+            next[index] = { 
+              ...item, 
+              isLiked: res.isLiked, 
+              likesCount: res.likesCount // Use authoritative count from server
+            };
+          }
+          return next;
+        });
+      }
+    });
   };
 
-  const toggleUpvote = async (reelId: string, index: number) => {
-    const res = await toggleReelUpvote(currentUserId, reelId);
-    if (res.success) {
-      setReels(prev => {
-        const next = [...prev];
-        const item = next[index];
-        next[index] = { 
-          ...item, 
-          isUpvoted: res.isUpvoted, 
-          upvotesCount: (item.upvotesCount || 0) + (res.isUpvoted ? 1 : -1) 
-        };
-        return next;
-      });
-    }
+  const toggleUpvote = (reelId: string, index: number) => {
+    if (status !== 'connected') return;
+    emit('reel_upvote', { reelId }, (res: any) => {
+      if (res.success) {
+        setReels(prev => {
+          const next = [...prev];
+          const item = next[index];
+          if (item) {
+            next[index] = { 
+              ...item, 
+              isUpvoted: res.isUpvoted, 
+              upvotesCount: res.upvotesCount // Use authoritative count from server
+            };
+          }
+          return next;
+        });
+      }
+    });
   };
 
   const handleUnlock = async () => {
@@ -164,6 +221,12 @@ const ReelsView = ({ initialData, currentUserId, currentUserBalance }: ReelsView
     }
     setUnlocking(false);
   };
+
+  const handleBuffering = (reelId: string, layout: 'mobile' | 'desktop', isBuffering: boolean) => {
+    setBufferingMap(prev => ({ ...prev, [`${layout}-${reelId}`]: isBuffering }));
+  };
+
+
 
   return (
     // On mobile: subtract the fixed bottom navbar (~56px). On md+ navbar is a left sidebar so use full dvh.
@@ -202,16 +265,32 @@ const ReelsView = ({ initialData, currentUserId, currentUserBalance }: ReelsView
                   onClick={() => setIsPlaying(!isPlaying)}
                 >
                   {reel.isUnlocked || unlockedReelIds.has(reel.id) ? (
-                    <video 
-                      ref={el => { videoRefs.current[reel.id] = el }}
-                      src={`/api/media/reel/${reel.id}`} 
-                      onContextMenu={(e) => e.preventDefault()}
-                      className="h-full w-full object-cover select-none"
-                      loop 
-                      muted={isMuted}
-                      playsInline
-                    />
+                    <div className="relative h-full w-full">
+                      <video 
+                        ref={el => { videoRefs.current[`mobile-${reel.id}`] = el }}
+                        src={`/api/media/reel/${reel.id}`} 
+                        onContextMenu={(e) => e.preventDefault()}
+                        className="h-full w-full object-cover select-none"
+                        loop 
+                        muted={isMuted}
+                        playsInline
+                        onWaiting={() => handleBuffering(reel.id, 'mobile', true)}
+                        onPlaying={() => handleBuffering(reel.id, 'mobile', false)}
+                        onLoadedData={() => handleBuffering(reel.id, 'mobile', false)}
+                      />
+                      
+                      {/* Loading Overly for Buffering */}
+                      {bufferingMap[`mobile-${reel.id}`] && (
+                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 backdrop-blur-sm pointer-events-none">
+                           <Loader2 className="w-12 h-12 text-purple-600 animate-spin" />
+                           <p className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-white/70 animate-pulse">
+                             Streaming <span className="text-purple-500">Reel</span>
+                           </p>
+                        </div>
+                      )}
+                    </div>
                   ) : (
+
                     <div className="relative h-full w-full">
                       <Image 
                         src="/locked-content.png" 
@@ -319,7 +398,7 @@ const ReelsView = ({ initialData, currentUserId, currentUserBalance }: ReelsView
                   className="flex-shrink-0 bg-black/90 backdrop-blur-xl px-4 py-3 flex items-center gap-3 border-t border-white/5"
                 >
                   <Link
-                    href={`/profile/${reel.authorId}`}
+                    href={`/profile/${reel.authorUsername}`}
                     onClick={(e) => e.stopPropagation()}
                     className="flex items-center gap-3 flex-1 min-w-0 group"
                   >
@@ -351,16 +430,35 @@ const ReelsView = ({ initialData, currentUserId, currentUserBalance }: ReelsView
                 onClick={() => setIsPlaying(!isPlaying)}
               >
                 {reel.isUnlocked || unlockedReelIds.has(reel.id) ? (
-                  <video 
-                    ref={el => { videoRefs.current[reel.id] = el }}
-                    src={`/api/media/reel/${reel.id}`} 
-                    onContextMenu={(e) => e.preventDefault()}
-                    className="h-full w-full object-cover select-none"
-                    loop 
-                    muted={isMuted}
-                    playsInline
-                  />
+                  <div className="relative h-full w-full">
+                    <video 
+                      ref={el => { videoRefs.current[`desktop-${reel.id}`] = el }}
+                      src={`/api/media/reel/${reel.id}`} 
+                      onContextMenu={(e) => e.preventDefault()}
+                      className="h-full w-full object-cover select-none"
+                      loop 
+                      muted={isMuted}
+                      playsInline
+                      onWaiting={() => handleBuffering(reel.id, 'desktop', true)}
+                      onPlaying={() => handleBuffering(reel.id, 'desktop', false)}
+                      onLoadedData={() => handleBuffering(reel.id, 'desktop', false)}
+                    />
+                    
+                    {/* Loading Overlay for Buffering */}
+                    {bufferingMap[`desktop-${reel.id}`] && (
+                      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/30 backdrop-blur-md pointer-events-none">
+                         <div className="relative">
+                            <div className="absolute inset-0 blur-2xl bg-purple-600/20 rounded-full" />
+                            <Loader2 className="relative w-24 h-24 text-purple-600 animate-spin" />
+                         </div>
+                         <p className="mt-6 text-xs font-black uppercase tracking-[0.5em] text-white/80 animate-pulse">
+                           Processing <span className="text-purple-500">Stream</span>
+                         </p>
+                      </div>
+                    )}
+                  </div>
                 ) : (
+
                   <div className="relative h-full w-full">
                     <Image 
                       src="/locked-content.png" 
@@ -468,7 +566,7 @@ const ReelsView = ({ initialData, currentUserId, currentUserBalance }: ReelsView
                    {/* Creator Details */}
                    <div className="mt-10 flex flex-col items-end gap-6">
                       <Link
-                        href={`/profile/${reel.authorId}`}
+                        href={`/profile/${reel.authorUsername}`}
                         onClick={(e) => e.stopPropagation()}
                         className="flex gap-4 items-center group"
                       >

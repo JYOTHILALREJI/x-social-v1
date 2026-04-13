@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Loader2, MessageSquare } from 'lucide-react';
 import Image from 'next/image';
-import { getReelComments, addReelComment } from '@/app/actions/reel-actions';
+import { useSocket } from '@/hooks/useSocket';
 
 interface Comment {
   id: string;
@@ -36,6 +36,7 @@ export default function ReelComments({
   isMobile = false,
   isCarousel = false,
 }: ReelCommentsProps) {
+  const { emit, status } = useSocket();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -68,24 +69,25 @@ export default function ReelComments({
     return () => clearInterval(timer);
   }, [isCarousel, comments.length]);
 
-  const fetchComments = async (isNew = false) => {
-    if (loading) return;
+  const fetchComments = (isNew = false) => {
+    if (loading || status !== 'connected') return;
     setLoading(true);
     const newSkip = isNew ? 0 : skip;
-    const res = await getReelComments(reelId, newSkip, 10);
     
-    if (res.success && res.comments) {
-      if (isNew) {
-        setComments(res.comments as any);
-        setCarouselPairIndex(0);
-        setSkip(10);
-      } else {
-        setComments(prev => [...prev, ...(res.comments as any[])]);
-        setSkip(prev => prev + 10);
+    emit('get_reel_comments', { reelId, skip: newSkip, take: 10 }, (res: any) => {
+      if (res.success && res.comments) {
+        if (isNew) {
+          setComments(res.comments as any);
+          setCarouselPairIndex(0);
+          setSkip(10);
+        } else {
+          setComments(prev => [...prev, ...(res.comments as any[])]);
+          setSkip(prev => prev + 10);
+        }
+        setHasMore(res.hasMore || false);
       }
-      setHasMore(res.hasMore || false);
-    }
-    setLoading(false);
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
@@ -106,19 +108,20 @@ export default function ReelComments({
     }
   };
 
-  const handlePost = async (e: React.FormEvent) => {
+  const handlePost = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim() || isPosting) return;
+    if (!text.trim() || isPosting || status !== 'connected') return;
 
     setIsPosting(true);
-    const res = await addReelComment(currentUserId, reelId, text.trim());
-    if (res.success && res.comment) {
-      setComments(prev => [res.comment as any, ...prev]);
-      setText("");
-    } else {
-      alert(res.error || "Failed to post comment");
-    }
-    setIsPosting(false);
+    emit('reel_comment', { reelId, text: text.trim() }, (res: any) => {
+      if (res.success && res.comment) {
+        setComments(prev => [res.comment as any, ...prev]);
+        setText("");
+      } else {
+        alert(res.error || "Failed to post comment");
+      }
+      setIsPosting(false);
+    });
   };
 
   // The pair currently shown in carousel mode

@@ -47,7 +47,7 @@ export async function subscribeToCreator(userId: string, creatorId: string, tier
 
     const creator = await prisma.user.findUnique({ 
       where: { id: creatorId },
-      include: { creatorProfile: true }
+      select: { username: true, creatorProfile: true }
     });
     if (!creator) {
       return { success: false, error: "Creator not found." };
@@ -128,7 +128,7 @@ export async function subscribeToCreator(userId: string, creatorId: string, tier
       })
     ]);
 
-    revalidatePath(`/profile/${creatorId}`);
+    revalidatePath(`/profile/${creator.username}`);
     revalidatePath("/feed");
     return { success: true };
   } catch (error) {
@@ -147,20 +147,27 @@ export async function purchaseContent(userId: string, contentId: string, type: '
     const amountInCents = amount; // incoming in cents
 
     // Fetch actual creator ID and settings
-    let contentAuthorId = "";
+    let contentAuthor: { id: string, username: string } | null = null;
     if (type === 'post') {
-      const p = await prisma.post.findUnique({ where: { id: contentId } });
-      contentAuthorId = p?.authorId || "";
+      const p = await prisma.post.findUnique({ 
+        where: { id: contentId },
+        select: { author: { select: { id: true, username: true } } }
+      });
+      contentAuthor = p?.author || null;
     } else {
-      const r = await prisma.reel.findUnique({ where: { id: contentId } });
-      contentAuthorId = r?.authorId || "";
+      const r = await prisma.reel.findUnique({ 
+        where: { id: contentId },
+        select: { author: { select: { id: true, username: true } } }
+      });
+      contentAuthor = r?.author || null;
     }
 
     const settings = await prisma.systemSettings.findUnique({ where: { id: "default" } });
     const fee = settings?.platformFee ?? 20;
     const creatorNetInCents = Math.floor(amountInCents * (1 - fee / 100));
 
-    if (!contentAuthorId) return { success: false, error: "Content creator not found." };
+    if (!contentAuthor) return { success: false, error: "Content creator not found." };
+    const contentAuthorId = contentAuthor.id;
 
     // Atomic Transaction to update both wallets and the follow record
     await prisma.$transaction([
@@ -197,7 +204,7 @@ export async function purchaseContent(userId: string, contentId: string, type: '
       })
     ]);
 
-    revalidatePath(`/profile/${contentAuthorId}`);
+    revalidatePath(`/profile/${contentAuthor.username}`);
     revalidatePath("/feed");
     return { success: true };
   } catch (error) {

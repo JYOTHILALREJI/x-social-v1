@@ -27,7 +27,7 @@ const SuggestedCreators = ({ suggested, currentUserId }: { suggested: any[], cur
         {suggested.map((creator) => (
           <div key={creator.id} className="relative aspect-[9/16] bg-card-bg rounded-3xl overflow-hidden group border border-border-theme">
             {/* Clickable Area for Profile */}
-            <Link href={`/profile/${creator.id}`} className="absolute inset-0 z-10">
+            <Link href={`/profile/${creator.username}`} className="absolute inset-0 z-10">
               <Image 
                 src={creator.latestReelThumb || "/default_user_profile/default-avatar.png"} 
                 alt="Reel" fill className="object-cover group-hover:scale-110 transition-transform duration-700"
@@ -36,7 +36,7 @@ const SuggestedCreators = ({ suggested, currentUserId }: { suggested: any[], cur
             </Link>
             
             <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-col gap-2">
-              <Link href={`/profile/${creator.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <Link href={`/profile/${creator.username}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                 <div className="w-6 h-6 rounded-full overflow-hidden relative border border-white/20">
                   <Image src={creator.image || "/default_user_profile/default-avatar.png"} alt="" fill className="object-cover" />
                 </div>

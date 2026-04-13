@@ -94,7 +94,7 @@ export async function toggleFollow(followerId: string, followingId: string, isFo
       }
     }
     revalidatePath("/");
-    revalidatePath(`/profile/${followingId}`);
+    revalidatePath(`/profile/${targetUser.username}`);
     return { success: true, status: "ACCEPTED" };
   } catch (error) {
     console.error("Toggle follow error:", error);
@@ -104,7 +104,7 @@ export async function toggleFollow(followerId: string, followingId: string, isFo
 
 export async function approveFollowRequest(notificationId: string, followerId: string, followingId: string) {
   try {
-    await prisma.$transaction([
+    const results = await prisma.$transaction([
       prisma.follow.update({
         where: { followerId_followingId: { followerId, followingId } },
         data: { status: "ACCEPTED" }
@@ -117,13 +117,22 @@ export async function approveFollowRequest(notificationId: string, followerId: s
         where: { id: followerId },
         data: { followingCount: { increment: 1 } }
       }),
+      // Add a fetch to get the username for revalidation
+      prisma.user.findUnique({
+        where: { id: followingId },
+        select: { username: true }
+      }),
       prisma.notification.update({
         where: { id: notificationId },
         data: { isRead: true }
       })
     ]);
+
+    const targetUser = results[3] as { username: string } | null;
     revalidatePath("/notifications");
-    revalidatePath(`/profile/${followingId}`);
+    if (targetUser) {
+      revalidatePath(`/profile/${targetUser.username}`);
+    }
     return { success: true };
   } catch (error) {
     return { success: false };

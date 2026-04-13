@@ -55,7 +55,14 @@ export async function blockUser(targetId: string) {
       await tx.user.update({ where: { id: targetId }, data: { followingCount: followingCount2 } });
     });
 
-    revalidatePath(`/profile/${targetId}`);
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetId },
+      select: { username: true }
+    });
+
+    if (targetUser) {
+      revalidatePath(`/profile/${targetUser.username}`);
+    }
     revalidatePath("/notifications");
     return { success: true };
   } catch (error) {

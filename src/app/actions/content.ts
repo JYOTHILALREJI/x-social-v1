@@ -26,8 +26,11 @@ export async function createPost(formData: FormData) {
     });
 
     // Revalidate paths to update UI
+    const author = await prisma.user.findUnique({ where: { id: authorId }, select: { username: true } });
     revalidatePath("/profile");
-    revalidatePath(`/profile/${authorId}`);
+    if (author) {
+      revalidatePath(`/profile/${author.username}`);
+    }
     revalidatePath("/feed");
 
     return { success: true, post };
@@ -60,8 +63,11 @@ export async function createReel(formData: FormData) {
     });
 
     // Revalidate paths to update UI
+    const author = await prisma.user.findUnique({ where: { id: authorId }, select: { username: true } });
     revalidatePath("/profile");
-    revalidatePath(`/profile/${authorId}`);
+    if (author) {
+      revalidatePath(`/profile/${author.username}`);
+    }
     revalidatePath("/reels");
 
     return { success: true, reel };

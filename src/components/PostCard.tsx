@@ -136,7 +136,7 @@ const PostCard = ({ post, isSubscribed = false, currentUserId, currentUserBalanc
       <div className="p-8 md:p-10">
         <div className="flex items-center gap-4 mb-8">
           <Link
-            href={`/profile/${post.authorId}`}
+            href={`/profile/${post.author.username}`}
             className="flex items-center gap-4 group"
           >
             <div className="w-12 h-12 rounded-full bg-card-bg overflow-hidden relative border border-border-theme group-hover:border-purple-500/50 transition-colors">

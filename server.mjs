@@ -346,6 +346,286 @@ app.prepare().then(() => {
         callback?.({ success: false });
       }
     });
+
+    // Handle Infinite Scroll Feed (Zero POST)
+    socket.on('get_feed', async (data, callback) => {
+      const { cursor, limit = 10 } = data;
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            mutedWords: true,
+            follows: { 
+              where: { following: { isGhost: false } },
+              select: { followingId: true }
+            }
+          }
+        });
+
+        const followingIds = user?.follows.map(f => f.followingId) || [];
+        const mutedWords = user?.mutedWords || [];
+
+        let posts = [];
+        const commonSelect = {
+          id: true, 
+          caption: true, 
+          createdAt: true, 
+          isPremium: true, 
+          price: true, 
+          authorId: true,
+          author: { select: { username: true, name: true, image: true, lastSeen: true, isActivityStatusEnabled: true } },
+          purchases: { where: { userId } },
+          likes: { where: { userId } },
+          _count: { select: { likes: true } },
+          comments: {
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+            include: { user: { select: { username: true, name: true, image: true } } }
+          }
+        };
+
+        const whereBase = {
+          author: { isGhost: false },
+          isPrivate: false,
+          ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {})
+        };
+
+        if (followingIds.length > 0) {
+          posts = await prisma.post.findMany({
+            where: { ...whereBase, authorId: { in: followingIds } },
+            select: commonSelect,
+            orderBy: { createdAt: 'desc' },
+            take: limit
+          });
+        } else {
+          // Mix logic for users not following anyone
+          const [freePosts, premiumPosts] = await Promise.all([
+            prisma.post.findMany({
+              where: { ...whereBase, isPremium: false },
+              take: Math.ceil(limit / 2),
+              select: commonSelect,
+              orderBy: { createdAt: 'desc' }
+            }),
+            prisma.post.findMany({
+              where: { ...whereBase, isPremium: true },
+              take: Math.floor(limit / 2),
+              select: commonSelect,
+              orderBy: { createdAt: 'desc' }
+            })
+          ]);
+          posts = [...freePosts, ...premiumPosts].sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        }
+
+        // Apply Muted Words Filtering
+        if (mutedWords.length > 0) {
+          posts = posts.filter(post => {
+            const caption = (post.caption || '').toLowerCase();
+            return !mutedWords.some(word => caption.includes(word.toLowerCase()));
+          });
+        }
+
+        const nextCursor = posts.length > 0 ? posts[posts.length - 1].createdAt : null;
+        callback?.({ success: true, posts, nextCursor });
+      } catch (err) {
+        console.error('[Socket] get_feed error:', err);
+        callback?.({ success: false, error: "Failed to fetch feed" });
+      }
+    });
+
+    // Handle Reels Fetching (Zero POST + Virality Algorithm)
+    socket.on('get_reels', async (data, callback) => {
+      const { page = 0, limit = 20 } = data;
+      try {
+        // Fetch a large pool for scoring
+        const dbReels = await prisma.reel.findMany({
+          take: 100,
+          include: {
+            author: {
+              select: { 
+                  id: true, username: true, name: true, image: true,
+                  followers: { where: { followerId: userId } }
+               }
+            },
+            purchases: { where: { userId } },
+            likes: { where: { userId } },
+            upvotes: { where: { userId } },
+            _count: { select: { likes: true, upvotes: true, comments: true } }
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        // Virality Algorithm
+        const scoredReels = dbReels.map(r => {
+          const ageInHours = (Date.now() - new Date(r.createdAt).getTime()) / (1000 * 60 * 60);
+          const engagement = (r._count.likes * 1) + (r._count.upvotes * 10) + (r._count.comments * 5);
+          const viralityScore = engagement / Math.pow(ageInHours + 2, 1.8);
+          
+          // Format for frontend
+          const isOwner = userId === r.authorId;
+          const follow = r.author.followers[0];
+          const isSubscribed = !!follow && (
+            (follow.expiresAt && new Date(follow.expiresAt).getTime() > Date.now()) ||
+            (!follow.expiresAt && (follow.subscriptionTier || 0) > 0)
+          );
+          const isPurchased = r.purchases.length > 0;
+          const isUnlocked = !r.isPremium || isOwner || isSubscribed || isPurchased;
+
+          return {
+            id: r.id,
+            url: r.videoUrl,
+            authorId: r.author.id,
+            authorName: r.author.name,
+            authorUsername: r.author.username,
+            authorImage: r.author.image,
+            isUnlocked,
+            isPremium: r.isPremium,
+            price: r.price,
+            likesCount: r._count.likes,
+            upvotesCount: r._count.upvotes,
+            commentsCount: r._count.comments,
+            isLiked: r.likes.length > 0,
+            isUpvoted: r.upvotes.length > 0,
+            viralityScore
+          };
+        }).sort((a, b) => b.viralityScore - a.viralityScore);
+
+        const startIndex = page * limit;
+        const reelsBatch = scoredReels.slice(startIndex, startIndex + limit);
+
+        callback?.({ success: true, reels: reelsBatch, hasMore: scoredReels.length > startIndex + limit });
+      } catch (err) {
+        console.error('[Socket] get_reels error:', err);
+        callback?.({ success: false, error: "Failed to fetch reels" });
+      }
+    });
+
+    // Handle Reel Actions (Zero POST)
+    socket.on('reel_like', async (data, callback) => {
+      const { reelId } = data;
+      try {
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { isGhost: true } });
+        if (user?.isGhost) return callback?.({ success: false, error: "Ghost accounts cannot like." });
+
+        const reel = await prisma.reel.findUnique({ where: { id: reelId }, select: { authorId: true } });
+        if (!reel) return callback?.({ success: false, error: "Reel not found." });
+
+        const existingLike = await prisma.reelLike.findUnique({
+          where: { userId_reelId: { userId, reelId } }
+        });
+
+        let isLiked = false;
+        if (existingLike) {
+          await prisma.reelLike.delete({ where: { id: existingLike.id } });
+          isLiked = false;
+        } else {
+          await prisma.reelLike.create({ data: { userId, reelId } });
+          isLiked = true;
+        }
+
+        const stats = await prisma.reelLike.count({ where: { reelId } });
+        callback?.({ success: true, isLiked, likesCount: stats });
+      } catch (err) {
+        console.error('[Socket] reel_like error:', err);
+        callback?.({ success: false, error: "Server error" });
+      }
+    });
+
+    socket.on('reel_upvote', async (data, callback) => {
+      const { reelId } = data;
+      try {
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { isGhost: true } });
+        if (user?.isGhost) return callback?.({ success: false, error: "Ghost accounts cannot upvote." });
+
+        const reel = await prisma.reel.findUnique({ where: { id: reelId }, select: { authorId: true } });
+        if (!reel) return callback?.({ success: false, error: "Reel not found." });
+
+        const existingUpvote = await prisma.reelUpvote.findUnique({
+          where: { userId_reelId: { userId, reelId } }
+        });
+
+        let isUpvoted = false;
+        if (existingUpvote) {
+          await prisma.reelUpvote.delete({ where: { id: existingUpvote.id } });
+          isUpvoted = false;
+        } else {
+          await prisma.reelUpvote.create({ data: { userId, reelId } });
+          isUpvoted = true;
+        }
+
+        const stats = await prisma.reelUpvote.count({ where: { reelId } });
+        callback?.({ success: true, isUpvoted, upvotesCount: stats });
+      } catch (err) {
+        console.error('[Socket] reel_upvote error:', err);
+        callback?.({ success: false, error: "Server error" });
+      }
+    });
+
+    socket.on('reel_comment', async (data, callback) => {
+      const { reelId, text } = data;
+      try {
+        if (!text?.trim()) return callback?.({ success: false, error: "Comment text required." });
+        
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { isGhost: true } });
+        if (user?.isGhost) return callback?.({ success: false, error: "Ghost accounts cannot comment." });
+
+        const comment = await prisma.reelComment.create({
+          data: { userId, reelId, text: text.trim() },
+          include: { 
+            user: { 
+              select: { 
+                username: true, 
+                name: true,
+                image: true 
+              } 
+            } 
+          }
+        });
+
+        callback?.({ success: true, comment });
+      } catch (err) {
+        console.error('[Socket] reel_comment error:', err);
+        callback?.({ success: false, error: "Server error" });
+      }
+    });
+
+    socket.on('get_reel_comments', async (data, callback) => {
+      const { reelId, skip = 0, take = 10 } = data;
+      try {
+        const [comments, totalCount] = await Promise.all([
+          prisma.reelComment.findMany({
+            where: { reelId },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take,
+            include: { 
+              user: { 
+                select: { 
+                  username: true, 
+                  name: true,
+                  image: true 
+                } 
+              } 
+            }
+          }),
+          prisma.reelComment.count({ where: { reelId } })
+        ]);
+
+        callback?.({ 
+          success: true, 
+          comments, 
+          hasMore: skip + take < totalCount 
+        });
+      } catch (err) {
+        console.error('[Socket] get_reel_comments error:', err);
+        callback?.({ success: false, comments: [] });
+      }
+    });
+
+    // Handle Reel Stats (Zero POST)
+
+
   });
 
   // Initialize the singleton manager

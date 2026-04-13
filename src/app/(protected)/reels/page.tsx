@@ -25,9 +25,9 @@ export default async function ReelsPage() {
     currentUserBalance = session?.user?.walletBalance || 0;
   }
 
-  // 1. Fetch a larger pool of reels (up to 100) to feed the virality algorithm
+  // 1. Fetch a smaller pool of reels (20) for the initial fast paint
   const dbReels = await prisma.reel.findMany({
-    take: 100,
+    take: 20,
     include: {
       author: {
         select: { 
