@@ -174,7 +174,13 @@ app.prepare().then(() => {
           include: { 
             sender: { select: { id: true, username: true, image: true } },
             repliedTo: {
-              include: {
+              select: {
+                id: true,
+                text: true,
+                encrypted: true,
+                iv: true,
+                encryptionSalt: true,
+                type: true,
                 sender: { select: { id: true, username: true, name: true } }
               }
             }
@@ -229,7 +235,13 @@ app.prepare().then(() => {
           include: { 
             sender: { select: { id: true, username: true, image: true } },
             repliedTo: {
-              include: {
+              select: {
+                id: true,
+                text: true,
+                encrypted: true,
+                iv: true,
+                encryptionSalt: true,
+                type: true,
                 sender: { select: { id: true, username: true, name: true } }
               }
             }
@@ -389,7 +401,11 @@ app.prepare().then(() => {
             messages: {
               take: 1,
               orderBy: { createdAt: 'desc' },
-              select: { id: true, text: true, createdAt: true, type: true, senderId: true, isRead: true, encrypted: true, iv: true, encryptionSalt: true, mediaUrl: true }
+              select: { 
+                id: true, text: true, createdAt: true, type: true, 
+                senderId: true, isRead: true, encrypted: true, iv: true, 
+                encryptionSalt: true, mediaUrl: true, repliedToId: true 
+              }
             },
             _count: { select: { messages: true } }
           },

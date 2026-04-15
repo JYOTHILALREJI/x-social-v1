@@ -424,8 +424,8 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
             const myKeys = await getMyKeyPair(currentUser.id);
             if (myKeys) {
               const theirPk = await importPublicKey(JSON.parse(other.publicKey));
-              const salt = m.encryptionSalt || m.id; // Graceful fallback
-              const sk = await deriveSharedKey(myKeys.privateKey, theirPk, c.id, salt);
+              const messageContext = m.encryptionSalt || m.id; // Graceful fallback
+              const sk = await deriveSharedKey(myKeys.privateKey, theirPk, c.id, messageContext);
               const decryptedText = await decryptMessage(m.text, m.iv, sk);
               return { 
                 ...c, 
@@ -487,8 +487,8 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
                
                // Decrypt the main message
                // IMPORTANT: Always prioritize encryptionSalt from DB/Payload
-               const salt = msg.encryptionSalt || msg.id;
-               const sharedKey = await deriveSharedKey(myKeys.privateKey, theirPk, conversationId, salt);
+               const messageContext = msg.encryptionSalt || msg.id;
+               const sharedKey = await deriveSharedKey(myKeys.privateKey, theirPk, conversationId, messageContext);
                
                const decryptedText = await decryptMessage(msg.text, msg.iv, sharedKey);
                msg = { ...msg, text: decryptedText, encrypted: false };
@@ -496,10 +496,10 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
                // Decrypt the parent/repliedTo message if it exists
                if (msg.repliedTo && msg.repliedTo.encrypted && msg.repliedTo.iv) {
                   try {
-                    const rSalt = msg.repliedTo.encryptionSalt || msg.repliedTo.id;
+                    const rMessageContext = msg.repliedTo.encryptionSalt || msg.repliedTo.id;
                     // We use the same sharedKey because it's deterministic for this conversation/salt pair
                     // But wait, the sharedKey is salt-specific. We need to derive a new one for the reply's salt.
-                    const replyKey = await deriveSharedKey(myKeys.privateKey, theirPk, conversationId, rSalt);
+                    const replyKey = await deriveSharedKey(myKeys.privateKey, theirPk, conversationId, rMessageContext);
                     msg.repliedTo.text = await decryptMessage(msg.repliedTo.text, msg.repliedTo.iv, replyKey);
                     msg.repliedTo.encrypted = false;
                   } catch (e) {
@@ -629,16 +629,16 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
                     try {
                       // DETERMINISTIC SALT FALLBACK:
                       // If encryptionSalt is missing (legacy), try m.id as salt.
-                      const salt = m.encryptionSalt || m.id;
-                      const sharedKey = await deriveSharedKey(myKeys.privateKey, theirPk, chat.id, salt);
+                      const messageContext = m.encryptionSalt || m.id;
+                      const sharedKey = await deriveSharedKey(myKeys.privateKey, theirPk, chat.id, messageContext);
                       const decryptedText = await decryptMessage(m.text, m.iv, sharedKey);
 
                       // Also decrypt the repliedTo snippet if it is encrypted
                       let decryptedRepliedTo = m.repliedTo;
                       if (m.repliedTo && m.repliedTo.encrypted && m.repliedTo.iv && m.repliedTo.text) {
                         try {
-                          const rSalt = m.repliedTo.encryptionSalt || m.repliedTo.id;
-                          const replyKey = await deriveSharedKey(myKeys.privateKey, theirPk, chat.id, rSalt);
+                          const rMessageContext = m.repliedTo.encryptionSalt || m.repliedTo.id;
+                          const replyKey = await deriveSharedKey(myKeys.privateKey, theirPk, chat.id, rMessageContext);
                           decryptedRepliedTo = { ...m.repliedTo, text: await decryptMessage(m.repliedTo.text, m.repliedTo.iv, replyKey), encrypted: false };
                         } catch (e) {
                           console.warn('[E2EE] Could not decrypt history reply snippet:', e);

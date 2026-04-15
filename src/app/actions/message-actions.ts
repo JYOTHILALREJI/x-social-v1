@@ -183,6 +183,8 @@ export async function sendMessage(
     duration?: number,
     encrypted?: boolean,
     iv?: string,
+    encryptionSalt?: string,
+    repliedToId?: string,
   }
 ) {
   try {
@@ -240,6 +242,8 @@ export async function sendMessage(
         duration: data.duration,
         encrypted: data.encrypted || false,
         iv: data.iv,
+        encryptionSalt: data.encryptionSalt ?? null,
+        repliedToId: data.repliedToId ?? null,
       },
       include: {
         sender: { select: { id: true, username: true, image: true } }

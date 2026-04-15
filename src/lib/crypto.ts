@@ -94,8 +94,11 @@ export async function deriveSharedKey(
   myPrivateKey: CryptoKey,
   theirPublicKey: CryptoKey,
   conversationId: string,
-  salt: string
+  messageContext: string // renamed: this is the HKDF info / per-message context
 ): Promise<CryptoKey> {
+  if (!conversationId || !messageContext) {
+    throw new Error('[E2EE] deriveSharedKey: missing conversationId or messageContext');
+  }
   // Step 1: ECDH → shared bits
   const sharedBits = await crypto.subtle.deriveBits(
     { name: 'ECDH', public: theirPublicKey },
@@ -120,7 +123,7 @@ export async function deriveSharedKey(
       name: 'HKDF',
       hash: 'SHA-256',
       salt: new TextEncoder().encode(conversationId),
-      info: new TextEncoder().encode(salt),
+      info: new TextEncoder().encode(messageContext),
     },
     hkdfKey,
     { name: 'AES-GCM', length: AES_KEY_LENGTH },
@@ -175,12 +178,13 @@ export async function decryptMessage(
   iv: string,
   sharedKey: CryptoKey
 ): Promise<string> {
-  const cipherBuffer = base64ToArrayBuffer(ciphertext);
-  const ivBuffer = base64ToArrayBuffer(iv);
-
+  // ✅ Guard FIRST before any buffer operations
   if (!ciphertext || !iv || !sharedKey) {
     throw new Error("Invalid decryption parameters");
   }
+
+  const cipherBuffer = base64ToArrayBuffer(ciphertext);
+  const ivBuffer = base64ToArrayBuffer(iv);
 
   const decryptedBuffer = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: ivBuffer },
