@@ -86,12 +86,15 @@ export async function importPrivateKey(jwk: JsonWebKey): Promise<CryptoKey> {
 // ==========================================
 
 /**
- * Derive a shared AES-256-GCM key from my private key + their public key.
- * Uses ECDH to compute shared bits, then HKDF to derive the final AES key.
+ * Derive a unique, deterministic AES-256-GCM key per message.
+ * Uses ECDH for the shared secret, then HKDF with conversationId and index 
+ * to ensure every message has a unique key while remaining stateless.
  */
 export async function deriveSharedKey(
   myPrivateKey: CryptoKey,
-  theirPublicKey: CryptoKey
+  theirPublicKey: CryptoKey,
+  conversationId: string,
+  salt: string
 ): Promise<CryptoKey> {
   // Step 1: ECDH → shared bits
   const sharedBits = await crypto.subtle.deriveBits(
@@ -110,16 +113,18 @@ export async function deriveSharedKey(
   );
 
   // Step 3: HKDF → AES-256-GCM key  
+  // We include conversationId and a unique messageIdentifier (like message ID)
+  // to ensure every message has a unique key while remaining stateless.
   const aesKey = await crypto.subtle.deriveKey(
     {
       name: 'HKDF',
       hash: 'SHA-256',
-      salt: new TextEncoder().encode('x-social-e2ee-v1'),
-      info: new TextEncoder().encode('message-encryption'),
+      salt: new TextEncoder().encode(conversationId),
+      info: new TextEncoder().encode(salt),
     },
     hkdfKey,
     { name: 'AES-GCM', length: AES_KEY_LENGTH },
-    false, // non-extractable for security
+    false, 
     ['encrypt', 'decrypt']
   );
 
@@ -172,6 +177,10 @@ export async function decryptMessage(
 ): Promise<string> {
   const cipherBuffer = base64ToArrayBuffer(ciphertext);
   const ivBuffer = base64ToArrayBuffer(iv);
+
+  if (!ciphertext || !iv || !sharedKey) {
+    throw new Error("Invalid decryption parameters");
+  }
 
   const decryptedBuffer = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: ivBuffer },

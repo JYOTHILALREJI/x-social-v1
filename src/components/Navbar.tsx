@@ -9,12 +9,12 @@ import { useSocket } from '@/hooks/useSocket';
 const Navbar = () => {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const { on, throttleAction, emit } = useSocket();
 
   useEffect(() => {
     let hasInitiallyChecked = false;
     const checkNotifications = async () => {
-      // Avoid redundant checks if we just did one (simple client-side throttle)
       emit('get_unread_notifications', {}, (res: any) => {
         if (res.success) {
           setUnreadCount(res.count);
@@ -22,19 +22,32 @@ const Navbar = () => {
       });
     };
 
+    const checkUnreadMessages = async () => {
+      emit('get_unread_messages_count', {}, (res: any) => {
+        if (res.success && res.count > 0) {
+          setHasUnreadMessages(true);
+        }
+      });
+    };
+
     // Initial check (only once per mount)
     if (!hasInitiallyChecked) {
       checkNotifications();
+      checkUnreadMessages();
       hasInitiallyChecked = true;
     }
     
-    // Listen for real-time notification events via SSE
+    // Listen for real-time notification events
     const unsubNotification = on('notification', () => {
       checkNotifications(); 
     });
 
     const unsubMessage = on('new_message', () => {
       checkNotifications();
+      // Only show badge if NOT on the messages page
+      if (window.location.pathname !== '/messages') {
+        setHasUnreadMessages(true);
+      }
     });
 
     const handleUpdate = () => checkNotifications();
@@ -46,6 +59,13 @@ const Navbar = () => {
       unsubMessage();
     };
   }, [on]);
+
+  // Handle clearing message badge when navigating to messages
+  useEffect(() => {
+    if (pathname === '/messages') {
+      setHasUnreadMessages(false);
+    }
+  }, [pathname]);
 
   if (pathname === '/' || pathname === '/auth') return null;
 
@@ -82,6 +102,9 @@ const Navbar = () => {
                 />
                 {item.href === '/notifications' && unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full border-2 border-background animate-pulse shadow-lg shadow-yellow-400/50" />
+                )}
+                {item.href === '/messages' && hasUnreadMessages && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full border-2 border-background animate-pulse shadow-lg shadow-purple-500/50" />
                 )}
               </div>
               <span className={`hidden lg:block text-lg transition-colors ${isActive ? 'font-bold text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>

@@ -135,7 +135,11 @@ app.prepare().then(() => {
 
     // Handle Send Message (Zero POST)
     socket.on('send_message', async (data, callback) => {
-      const { conversationId, text, type, mediaUrl, expiresAt, viewLimit, duration, encrypted, iv } = data;
+      const { 
+        conversationId, text, type, mediaUrl, expiresAt, 
+        viewLimit, duration, encrypted, iv, repliedToId, 
+        ratchet, encryptionSalt 
+      } = data;
       try {
         const conversation = await prisma.conversation.findUnique({
           where: { id: conversationId },
@@ -163,15 +167,38 @@ app.prepare().then(() => {
         const message = await prisma.message.create({
           data: {
             conversationId, senderId: userId, text, type: type || "TEXT",
-            mediaUrl, expiresAt, viewLimit, viewCount: 0, duration, encrypted, iv
+            mediaUrl, expiresAt, viewLimit, viewCount: 0, duration, 
+            encrypted, iv, encryptionSalt,
+            repliedToId
           },
-          include: { sender: { select: { id: true, username: true, image: true } } }
+          include: { 
+            sender: { select: { id: true, username: true, image: true } },
+            repliedTo: {
+              include: {
+                sender: { select: { id: true, username: true, name: true } }
+              }
+            }
+          }
         });
 
         await prisma.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: new Date() } });
+        
+        // Auto-heal DB staleness if client passed its live key
+        if (data.senderLivePublicKey) {
+          await prisma.user.update({
+            where: { id: userId },
+            data: { publicKey: data.senderLivePublicKey }
+          }).catch(console.error); // fail silently so we don't break message delivery
+        }
+
         const senderData = await prisma.user.findUnique({ where: { id: userId }, select: { publicKey: true } });
 
-        io.to(`user:${recipientId}`).emit('new_message', { conversationId, message, senderPublicKey: senderData?.publicKey });
+        io.to(`user:${recipientId}`).emit('new_message', { 
+          conversationId, 
+          message, 
+          senderPublicKey: data.senderLivePublicKey || senderData?.publicKey, 
+          ratchet 
+        });
         io.to(`user:${recipientId}`).emit('conversation_updated', { conversationId, lastMessageAt: new Date().toISOString() });
         
         callback?.({ success: true, message });
@@ -185,11 +212,28 @@ app.prepare().then(() => {
     socket.on('get_history', async (data, callback) => {
       const { conversationId, skip = 0, take = 50 } = data;
       try {
+        // Fetch conversation with FRESH public keys for E2EE
+        const conversation = await prisma.conversation.findUnique({
+          where: { id: conversationId },
+          select: {
+            user1Id: true, user2Id: true,
+            user1: { select: { id: true, publicKey: true } },
+            user2: { select: { id: true, publicKey: true } }
+          }
+        });
+
         const rawMessages = await prisma.message.findMany({
           where: { conversationId },
           orderBy: { createdAt: 'desc' },
           skip, take,
-          include: { sender: { select: { id: true, username: true, image: true } } }
+          include: { 
+            sender: { select: { id: true, username: true, image: true } },
+            repliedTo: {
+              include: {
+                sender: { select: { id: true, username: true, name: true } }
+              }
+            }
+          }
         });
         const messages = rawMessages.map(msg => {
           const isExpired = msg.expiresAt && new Date() > msg.expiresAt;
@@ -197,7 +241,7 @@ app.prepare().then(() => {
           if (isExpired || isLimitReached) return { ...msg, mediaUrl: null, text: "Media Expired" };
           return msg;
         });
-        callback?.({ success: true, messages: messages.reverse() });
+        callback?.({ success: true, messages: messages.reverse(), conversation });
       } catch (err) {
         callback?.({ success: false, messages: [] });
       }
@@ -258,6 +302,79 @@ app.prepare().then(() => {
       }
     });
 
+    // Handle Save Key Backup (Zero POST)
+    socket.on('save_key_backup', async (data, callback) => {
+      const { encryptedPrivateKey } = data;
+      try {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { encryptedPrivateKey }
+        });
+        callback?.({ success: true });
+      } catch (err) {
+        callback?.({ success: false });
+      }
+    });
+
+    // --- SIGNAL PROTOCOL HANDLERS ---
+
+    // Upload PreKey Bundle
+    socket.on('upload_prekeys', async (data, callback) => {
+      const { signedPreKey, signedPreKeySignature, oneTimePreKeys } = data;
+      try {
+        await prisma.$transaction([
+          // Update Identity/Signed PreKey
+          prisma.user.update({
+            where: { id: userId },
+            data: { signedPreKey, signedPreKeySignature }
+          }),
+          // Add One-Time PreKeys
+          prisma.preKey.createMany({
+            data: oneTimePreKeys.map((pk) => ({ userId, publicKey: pk }))
+          })
+        ]);
+        callback?.({ success: true });
+      } catch (err) {
+        console.error('[Signal] Upload failed:', err);
+        callback?.({ success: false });
+      }
+    });
+
+    // Get PreKey Bundle for Peer
+    socket.on('get_prekey_bundle', async (data, callback) => {
+      const { targetUserId } = data;
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: targetUserId },
+          select: { id: true, publicKey: true, signedPreKey: true, signedPreKeySignature: true }
+        });
+        if (!user) return callback?.({ success: false });
+
+        // Get one random unused pre-key
+        const otpk = await prisma.preKey.findFirst({
+          where: { userId: targetUserId, isUsed: false },
+          orderBy: { createdAt: 'asc' } // Oldest first
+        });
+
+        // Mark as used immediately to prevent reuse (X3DH property)
+        if (otpk) {
+          await prisma.preKey.update({ where: { id: otpk.id }, data: { isUsed: true } });
+        }
+
+        callback?.({
+          success: true,
+          bundle: {
+            identityKey: user.publicKey,
+            signedPreKey: user.signedPreKey,
+            signedPreKeySignature: user.signedPreKeySignature,
+            oneTimePreKey: otpk?.publicKey || null
+          }
+        });
+      } catch (err) {
+        callback?.({ success: false });
+      }
+    });
+
     // Handle Get Conversations (Zero POST)
     socket.on('get_conversations', async (data, callback) => {
       try {
@@ -272,7 +389,7 @@ app.prepare().then(() => {
             messages: {
               take: 1,
               orderBy: { createdAt: 'desc' },
-              select: { text: true, createdAt: true, type: true, senderId: true, isRead: true, encrypted: true, iv: true, mediaUrl: true }
+              select: { id: true, text: true, createdAt: true, type: true, senderId: true, isRead: true, encrypted: true, iv: true, encryptionSalt: true, mediaUrl: true }
             },
             _count: { select: { messages: true } }
           },
@@ -322,14 +439,35 @@ app.prepare().then(() => {
       }
     });
 
-    // Handle Get Unread Notifications (Zero POST)
     socket.on('get_unread_notifications', async (data, callback) => {
       try {
         const count = await prisma.notification.count({
-          where: { recipientId: userId, isRead: false }
+          where: { userId: userId, isRead: false }
         });
         callback?.({ success: true, count });
       } catch (error) {
+        callback?.({ success: false, count: 0 });
+      }
+    });
+
+    // Handle Get Unread Messages Count (Zero POST)
+    socket.on('get_unread_messages_count', async (data, callback) => {
+      try {
+        const count = await prisma.message.count({
+          where: {
+            isRead: false,
+            senderId: { not: userId },
+            conversation: {
+              OR: [
+                { user1Id: userId },
+                { user2Id: userId }
+              ]
+            }
+          }
+        });
+        callback?.({ success: true, count });
+      } catch (error) {
+        console.error('[Socket] get_unread_messages_count error:', error);
         callback?.({ success: false, count: 0 });
       }
     });

@@ -25,9 +25,11 @@ import {
 } from './crypto';
 
 const DB_NAME = 'x-social-e2ee';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const KEY_STORE = 'keys';
 const CONVERSATION_STORE = 'conversation-keys';
+const SESSION_STORE = 'ratchet-sessions'; // Signal Sessions
+const PREKEY_STORE = 'prekeys';          // One-Time PreKeys
 
 // ==========================================
 // DATABASE INITIALIZATION
@@ -46,6 +48,14 @@ function openDB(): Promise<IDBDatabase> {
       // Store for derived conversation keys (cache)
       if (!db.objectStoreNames.contains(CONVERSATION_STORE)) {
         db.createObjectStore(CONVERSATION_STORE, { keyPath: 'conversationId' });
+      }
+      // Store for Ratchet Sessions
+      if (!db.objectStoreNames.contains(SESSION_STORE)) {
+        db.createObjectStore(SESSION_STORE, { keyPath: 'id' });
+      }
+      // Store for One-Time PreKeys
+      if (!db.objectStoreNames.contains(PREKEY_STORE)) {
+        db.createObjectStore(PREKEY_STORE, { keyPath: 'id' });
       }
     };
 
@@ -126,74 +136,26 @@ export async function generateAndStoreKeyPair(userId: string): Promise<JsonWebKe
   });
 }
 
-// ==========================================
-// CONVERSATION KEY CACHE
-// ==========================================
-
-interface StoredConversationKey {
-  conversationId: string;
-  otherUserPublicKey: JsonWebKey;
-  // We can't store non-extractable CryptoKeys in IDB directly,
-  // so we derive them on-demand and cache in memory.
-}
-
-// In-memory cache for derived AES keys (performance optimization)
-// Map<conversationId, { sharedKey: CryptoKey, publicKeyJwk: string }>
-const derivedKeyCache = new Map<string, { sharedKey: CryptoKey, publicKeyJwk: string }>();
-
 /**
- * Get or derive the shared encryption key for a conversation.
- * 
- * Flow:
- * 1. Check in-memory cache
- * 2. If cached, verify that the public key JWK matches (prevents stale keys)
- * 3. If not cached or stale, derive from our private key + their public key
- * 4. Cache the result for future use
+ * Store an existing key pair (e.g. from backup restoration).
  */
-export async function getConversationKey(
-  userId: string,
-  conversationId: string,
-  theirPublicKeyJwk: JsonWebKey
-): Promise<CryptoKey | null> {
-  const publicKeyStr = JSON.stringify(theirPublicKeyJwk);
+export async function storeRestoredKeyPair(userId: string, publicKeyJwk: JsonWebKey, privateKeyJwk: JsonWebKey): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(KEY_STORE, 'readwrite');
+    const store = tx.objectStore(KEY_STORE);
 
-  // Check memory cache first
-  const cacheKey = `${userId}-${conversationId}`;
-  const cached = derivedKeyCache.get(cacheKey);
-  if (cached && cached.publicKeyJwk === publicKeyStr) {
-    return cached.sharedKey;
-  }
+    const entry: StoredKeyPair = {
+      id: `keypair-${userId}`,
+      publicKey: publicKeyJwk,
+      privateKey: privateKeyJwk,
+      createdAt: Date.now(),
+    };
 
-  // Derive new key using our private key
-  const myKeys = await getMyKeyPair(userId);
-  if (!myKeys) return null;
-
-  try {
-    const theirPublicKey = await importPublicKey(theirPublicKeyJwk);
-    const sharedKey = await deriveSharedKey(myKeys.privateKey, theirPublicKey);
-    
-    // Store in memory cache
-    derivedKeyCache.set(cacheKey, { sharedKey, publicKeyJwk: publicKeyStr });
-    
-    return sharedKey;
-  } catch (err) {
-    console.error('[KeyStore] Failed to derive conversation key:', err);
-    return null;
-  }
-}
-
-/**
- * Clear the cached conversation key (e.g. when keys are rotated).
- */
-export function clearConversationKey(conversationId: string): void {
-  derivedKeyCache.delete(conversationId);
-}
-
-/**
- * Clear all cached keys.
- */
-export function clearAllCachedKeys(): void {
-  derivedKeyCache.clear();
+    const request = store.put(entry);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
 }
 
 // ==========================================

@@ -63,7 +63,21 @@ model User {
   interests               UserInterest[]
   conversations1          Conversation[]   @relation("User1Conversations")
   conversations2          Conversation[]   @relation("User2Conversations")
-  messages                Message[]
+  messages                Message[]        @relation("MessageSender")
+  signedPreKey            String?
+  signedPreKeySignature   String?
+  oneTimePreKeys          PreKey[]
+}
+
+model PreKey {
+  id        String   @id @default(cuid())
+  userId    String
+  publicKey String   @unique
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Block {
@@ -374,18 +388,22 @@ model Message {
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderId       String
-  sender         User         @relation(fields: [senderId], references: [id])
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id])
   text           String?
   type           String       @default("TEXT") // TEXT, VOICE, MEDIA
   mediaUrl       String?
   isRead         Boolean      @default(false)
   encrypted      Boolean      @default(false)
   iv             String?
+  encryptionSalt String?      // Secure salt for deterministic key derivation
   createdAt      DateTime     @default(now())
   expiresAt      DateTime?
   viewLimit      Int?
   viewCount      Int          @default(0)
   duration       Int?         // voice/video duration in seconds
+  repliedToId    String?
+  repliedTo      Message?     @relation("ReplyTo", fields: [repliedToId], references: [id])
+  replies        Message[]    @relation("ReplyTo")
 
   @@index([conversationId, createdAt])
   @@index([senderId])

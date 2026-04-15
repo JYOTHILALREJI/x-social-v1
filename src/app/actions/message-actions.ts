@@ -20,7 +20,7 @@ export async function getConversations(userId: string) {
         messages: {
           take: 1,
           orderBy: { createdAt: 'desc' },
-          select: { text: true, createdAt: true, type: true, senderId: true, isRead: true, encrypted: true, iv: true, mediaUrl: true }
+          select: { id: true, text: true, createdAt: true, type: true, senderId: true, isRead: true, encrypted: true, iv: true, encryptionSalt: true, mediaUrl: true }
         },
         _count: {
           select: { messages: true }

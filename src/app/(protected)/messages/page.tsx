@@ -16,7 +16,7 @@ export default async function MessagesPage() {
     where: { sessionToken },
     include: {
       user: {
-        select: { id: true, username: true, name: true, image: true, role: true, walletBalance: true, isGhost: true, publicKey: true }
+        select: { id: true, username: true, name: true, image: true, role: true, walletBalance: true, isGhost: true, publicKey: true, encryptedPrivateKey: true }
       }
     }
   });

@@ -1,11 +1,11 @@
-"use client";
+ "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Search, MoreVertical, Edit, CheckCheck, Send, 
   Paperclip, Smile, Mic, Video, Camera, Info, 
   Check, X, Loader2, ArrowLeft, Lock, Wallet, Plus, Eye, Volume2, VolumeX, Trash2,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Reply, CornerUpLeft
 } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,10 +17,14 @@ import {
    respondToRequest, markMessageSeen, setUserEncryptedBackup
 } from '@/app/actions/message-actions';
 import { useSocket } from '@/hooks/useSocket';
-import { encryptMessage, decryptMessage } from '@/lib/crypto';
 import { 
-  getMyKeyPair, generateAndStoreKeyPair, getConversationKey, 
-  hasKeyPair, createKeyBackup 
+  encryptMessage, decryptMessage, encryptPrivateKeyForBackup, 
+  decryptPrivateKeyFromBackup, exportPublicKey, generateKeyPair,
+  exportPrivateKey, importPublicKey, importPrivateKey, deriveSharedKey
+} from '@/lib/crypto';
+import { 
+  getMyKeyPair, generateAndStoreKeyPair, 
+  hasKeyPair, createKeyBackup, storeRestoredKeyPair
 } from '@/lib/key-store';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -276,6 +280,15 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
   const [keyBackupPassword, setKeyBackupPassword] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<any>(null);
+  const [showBackupModal, setShowBackupModal] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [backupPassword, setBackupPassword] = useState('');
+  const [restorePassword, setRestorePassword] = useState('');
+  const [keyError, setKeyError] = useState('');
+  const [isProcessingKeys, setIsProcessingKeys] = useState(false);
+  const [sessions, setSessions] = useState<Map<string, any>>(new Map());
+  const [showChatMenu, setShowChatMenu] = useState(false);
   const otherTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const publicKeyCache = useRef<Map<string, string>>(new Map());
 
@@ -311,33 +324,88 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
     return chat.user1Id === currentUser.id ? chat.user2 : chat.user1;
   }, [currentUser.id]);
 
-  // ==========================================
-  // E2EE KEY INITIALIZATION
-  // ==========================================
+  // E2EE Initialization & Recovery Check
   useEffect(() => {
-    const initEncryption = async () => {
+    if (socketStatus !== 'connected') return;
+
+    const initE2EE = async () => {
       try {
-        const hasKeys = await hasKeyPair(currentUser.id);
-        if (!hasKeys) {
-          const publicKeyJwk = await generateAndStoreKeyPair(currentUser.id);
-          emit('set_public_key', { publicKeyJwk: JSON.stringify(publicKeyJwk) });
-          setShowKeySetup(true);
-        } else if (!currentUser.publicKey) {
-          // If browser has keys but server lost the public key (e.g. DB wipe)
-          const myKeys = await getMyKeyPair(currentUser.id);
-          if (myKeys) {
-            const jwk = await window.crypto.subtle.exportKey("jwk", myKeys.publicKey);
-            emit('set_public_key', { publicKeyJwk: JSON.stringify(jwk) });
+        const exists = await hasKeyPair(currentUser.id);
+        if (!exists) {
+          if (currentUser.encryptedPrivateKey) {
+            setShowRestoreModal(true);
+          } else {
+            const publicKeyJwk = await generateAndStoreKeyPair(currentUser.id);
+            emit('set_public_key', { publicKeyJwk: JSON.stringify(publicKeyJwk) });
+            setEncryptionReady(true);
+            setShowBackupModal(true);
           }
+        } else {
+          // ALWAYS synchronize our local key with the server when socket connects.
+          // This fixes issues where the server DB was reset but IndexedDB wasn't.
+          try {
+            const keys = await getMyKeyPair(currentUser.id);
+            if (keys) {
+              const pkJwk = await exportPublicKey(keys.publicKey);
+              emit('set_public_key', { publicKeyJwk: JSON.stringify(pkJwk) });
+            }
+          } catch (e) {
+            console.error('[E2EE] Sync public key failed:', e);
+          }
+          setEncryptionReady(true);
         }
-        setEncryptionReady(true);
       } catch (err) {
-        console.error('[E2EE] Key initialization failed:', err);
-        setEncryptionReady(false);
+        console.error('[E2EE] Init failed:', err);
       }
     };
-    initEncryption();
-  }, [currentUser.id]);
+    initE2EE();
+  }, [currentUser.id, currentUser.encryptedPrivateKey, currentUser.signedPreKey, emit, socketStatus]);
+
+  const handleRestoreKeys = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!restorePassword || isProcessingKeys) return;
+    setKeyError('');
+    setIsProcessingKeys(true);
+
+    try {
+      const privateKey = await decryptPrivateKeyFromBackup(currentUser.encryptedPrivateKey, restorePassword);
+      const publicKeyJwk = JSON.parse(currentUser.publicKey);
+      const privateKeyJwk = await crypto.subtle.exportKey('jwk', privateKey);
+      
+      await storeRestoredKeyPair(currentUser.id, publicKeyJwk, privateKeyJwk);
+      setShowRestoreModal(false);
+      setEncryptionReady(true);
+      setRestorePassword('');
+      if (selectedChat) handleSelectChat(selectedChat);
+    } catch (err) {
+      setKeyError('Invalid recovery password. Please try again.');
+    } finally {
+      setIsProcessingKeys(false);
+    }
+  };
+
+  const handleCreateBackup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!backupPassword || isProcessingKeys) return;
+    setIsProcessingKeys(true);
+
+    try {
+      const keyPair = await getMyKeyPair(currentUser.id);
+      if (keyPair) {
+        const encrypted = await encryptPrivateKeyForBackup(keyPair.privateKey, backupPassword);
+        emit('save_key_backup', { encryptedPrivateKey: encrypted }, (res: any) => {
+          if (res.success) {
+            setShowBackupModal(false);
+            setBackupPassword('');
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Backup failed:', err);
+    } finally {
+      setIsProcessingKeys(false);
+    }
+  };
 
   // ==========================================
   // DECRYPTION HELPERS
@@ -353,20 +421,23 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
           if (!other) return c;
           
           if (other.publicKey) {
-            const sk = await getConversationKey(currentUser.id, c.id, JSON.parse(other.publicKey));
-            if (sk) {
+            const myKeys = await getMyKeyPair(currentUser.id);
+            if (myKeys) {
+              const theirPk = await importPublicKey(JSON.parse(other.publicKey));
+              const salt = m.encryptionSalt || m.id; // Graceful fallback
+              const sk = await deriveSharedKey(myKeys.privateKey, theirPk, c.id, salt);
+              const decryptedText = await decryptMessage(m.text, m.iv, sk);
               return { 
                 ...c, 
-                messages: [{ ...m, text: await decryptMessage(m.text, m.iv, sk), encrypted: false }] 
+                messages: [{ ...m, text: decryptedText, encrypted: false }] 
               };
             }
-            throw new Error("sk null");
           }
-          throw new Error("No public key");
+          throw new Error("sk/pk null");
         } catch (err) {
           return {
             ...c,
-            messages: [{ ...m, text: "[Message encrypted with previous key]", encrypted: false }]
+            messages: [{ ...m, text: "[Encryption mismatch. Restore from backup?]", encrypted: false }]
           };
         }
       }
@@ -392,36 +463,64 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
       }
     }
   }, [selectedChatId, conversations, selectedChat]);
-
   // ==========================================
   // SOCKET EVENT HANDLERS
   // ==========================================
   useEffect(() => {
     // Handle incoming messages
     const unsubMessage = on('new_message', async (data: any) => {
-      // If the message is for the currently open chat, add it
-      if (selectedChat && data.conversationId === selectedChat.id) {
-        let msg = data.message;
+      let msg = data.message;
+      const conversationId = data.conversationId;
 
+      // --- REAL-TIME DETEMINISTIC DECRYPTION ---
+      if (conversationId === selectedChat?.id) {
         if (msg.encrypted && msg.iv && msg.text && encryptionReady) {
           try {
-            const senderPk = data.senderPublicKey || getOtherUser(selectedChat)?.publicKey;
-            if (senderPk) {
-              const sharedKey = await getConversationKey(
-                currentUser.id,
-                selectedChat.id,
-                JSON.parse(senderPk)
-              );
-              if (sharedKey) {
-                msg = { ...msg, text: await decryptMessage(msg.text, msg.iv, sharedKey), encrypted: false };
-              }
+            const myKeys = await getMyKeyPair(currentUser.id);
+            // Use the FRESH senderPublicKey from the server event, with sidebar as fallback
+            const senderId = msg.senderId;
+            const otherUser = getOtherUser(selectedChat);
+            const freshPublicKey = data.senderPublicKey || otherUser?.publicKey;
+            
+            if (myKeys && freshPublicKey) {
+               const theirPk = await importPublicKey(JSON.parse(freshPublicKey));
+               
+               // Decrypt the main message
+               // IMPORTANT: Always prioritize encryptionSalt from DB/Payload
+               const salt = msg.encryptionSalt || msg.id;
+               const sharedKey = await deriveSharedKey(myKeys.privateKey, theirPk, conversationId, salt);
+               
+               const decryptedText = await decryptMessage(msg.text, msg.iv, sharedKey);
+               msg = { ...msg, text: decryptedText, encrypted: false };
+               
+               // Decrypt the parent/repliedTo message if it exists
+               if (msg.repliedTo && msg.repliedTo.encrypted && msg.repliedTo.iv) {
+                  try {
+                    const rSalt = msg.repliedTo.encryptionSalt || msg.repliedTo.id;
+                    // We use the same sharedKey because it's deterministic for this conversation/salt pair
+                    // But wait, the sharedKey is salt-specific. We need to derive a new one for the reply's salt.
+                    const replyKey = await deriveSharedKey(myKeys.privateKey, theirPk, conversationId, rSalt);
+                    msg.repliedTo.text = await decryptMessage(msg.repliedTo.text, msg.repliedTo.iv, replyKey);
+                    msg.repliedTo.encrypted = false;
+                  } catch (e) {
+                    console.warn('[E2EE] Could not decrypt reply snippet:', e);
+                    msg.repliedTo.text = "[Encrypted Reply]";
+                  }
+               }
             }
           } catch (err) {
-            msg = { ...msg, text: "[Message encrypted with previous key]", encrypted: false };
+            console.error('[E2EE] Realtime decrypt error:', err);
+            // Graceful fallback prevents the entire message stream from breaking
+            msg = { ...msg, text: "[Decryption Failed]", encrypted: false };
+            if (msg.repliedTo) msg.repliedTo.text = "[Encrypted]";
           }
         }
+        
+        setMessages(prev => {
+          if (prev.find(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
 
-        setMessages(prev => [...prev, msg]);
         throttleAction('markRead_' + selectedChat.id, async () => {
            emit('mark_read', { conversationId: selectedChat.id });
         }, 2000);
@@ -494,6 +593,7 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
 
   const handleSelectChat = async (chat: any) => {
     if (selectedChat?.id === chat.id && messages.length > 0) return; // Skip if already selected and loaded
+    if (loadingMessages) return; // Prevent re-trigger while a chat load is in progress
 
     setSelectedChat(chat);
     setLoadingMessages(true);
@@ -509,30 +609,56 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
     
     try {
       // 1. Fetch data & Access via SOCKET (Zero POST)
-      emit('get_history', { conversationId: chat.id }, (msgRes: any) => {
+      emit('get_history', { conversationId: chat.id }, async (msgRes: any) => {
         if (msgRes.success && msgRes.messages) {
           let loadedMessages = msgRes.messages;
           
-          // 2. Decrypt history
-          if (encryptionReady) {
-            const otherUser = getOtherUser(chat);
-            if (otherUser && otherUser.publicKey) {
-              getConversationKey(currentUser.id, chat.id, JSON.parse(otherUser.publicKey)).then(sharedKey => {
-                if (sharedKey) {
-                  Promise.all(loadedMessages.map(async (m: any) => {
-                    if (m.encrypted && m.iv && m.text) {
-                      try {
-                        return { ...m, text: await decryptMessage(m.text, m.iv, sharedKey), encrypted: false };
-                      } catch {
-                        return { ...m, text: "[Message encrypted with previous key]", encrypted: false };
+          // 2. Decrypt history using FRESH public keys from the server
+          if (encryptionReady && msgRes.conversation) {
+            const conv = msgRes.conversation;
+            // Determine who the "other" user is and get their FRESH public key
+            const otherUserFresh = conv.user1Id === currentUser.id ? conv.user2 : conv.user1;
+            
+            if (otherUserFresh?.publicKey) {
+              const myKeys = await getMyKeyPair(currentUser.id);
+              if (myKeys) {
+                const theirPk = await importPublicKey(JSON.parse(otherUserFresh.publicKey));
+                
+                const processed = await Promise.all(loadedMessages.map(async (m: any) => {
+                  if (m.encrypted && m.iv && m.text) {
+                    try {
+                      // DETERMINISTIC SALT FALLBACK:
+                      // If encryptionSalt is missing (legacy), try m.id as salt.
+                      const salt = m.encryptionSalt || m.id;
+                      const sharedKey = await deriveSharedKey(myKeys.privateKey, theirPk, chat.id, salt);
+                      const decryptedText = await decryptMessage(m.text, m.iv, sharedKey);
+
+                      // Also decrypt the repliedTo snippet if it is encrypted
+                      let decryptedRepliedTo = m.repliedTo;
+                      if (m.repliedTo && m.repliedTo.encrypted && m.repliedTo.iv && m.repliedTo.text) {
+                        try {
+                          const rSalt = m.repliedTo.encryptionSalt || m.repliedTo.id;
+                          const replyKey = await deriveSharedKey(myKeys.privateKey, theirPk, chat.id, rSalt);
+                          decryptedRepliedTo = { ...m.repliedTo, text: await decryptMessage(m.repliedTo.text, m.repliedTo.iv, replyKey), encrypted: false };
+                        } catch (e) {
+                          console.warn('[E2EE] Could not decrypt history reply snippet:', e);
+                          decryptedRepliedTo = { ...m.repliedTo, text: "[Encrypted Reply]", encrypted: false };
+                        }
                       }
+
+                      return { ...m, text: decryptedText, encrypted: false, repliedTo: decryptedRepliedTo };
+                    } catch (err) {
+                      console.error('[E2EE] History decrypt error:', err);
+                      // Return partial success: allow the message to be shown with a fallback label
+                      return { ...m, text: "[Decryption Error: Check Recovery Phrase]", encrypted: false };
                     }
-                    return m;
-                  })).then(setMessages);
-                } else {
-                  setMessages(loadedMessages);
-                }
-              });
+                  }
+                  return m;
+                }));
+                setMessages(processed);
+              } else {
+                setMessages(loadedMessages);
+              }
             } else {
               setMessages(loadedMessages);
             }
@@ -556,6 +682,11 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
     }
   };
 
+  const handleResetSession = async () => {
+    // No longer needed with deterministic E2EE
+    alert("Deterministic E2EE is self-healing. No session reset required.");
+  };
+
   const handleTyping = () => {
     if (!selectedChat) return;
     const otherUser = getOtherUser(selectedChat);
@@ -573,6 +704,7 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
   const handleSendMessage = async (e?: React.FormEvent, customData?: any) => {
     if (e) e.preventDefault();
     const dataToUse = customData || { text: newMessage, type: "TEXT" };
+    if (!selectedChat) return;
     if (!dataToUse.text?.trim() && !dataToUse.mediaUrl && !sending) return;
 
     setSending(true);
@@ -586,55 +718,62 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
         });
     }, 200);
 
+    // Safety timeout: reset state if the socket callback never fires within 15s
+    const sendTimeout = setTimeout(() => {
+      clearInterval(progressInterval);
+      setUploadProgress(0);
+      setSending(false);
+    }, 15000);
+
     // Encrypt text messages if E2EE is ready and we have a text message
     let payload: any = { 
       conversationId: selectedChat.id,
       ...dataToUse,
-      ...((isEphemeral || customData?.isEphemeral) ? { viewLimit: 1 } : {}) 
+      ...((isEphemeral || customData?.isEphemeral) ? { viewLimit: 1 } : {}),
+      ...(replyingTo ? { repliedToId: replyingTo.id } : {})
     };
 
     if (encryptionReady && payload.text && payload.type === 'TEXT' && selectedChat) {
       try {
         const otherUser = getOtherUser(selectedChat);
-        if (otherUser) {
-          let latestPk = publicKeyCache.current.get(otherUser.id);
-          
-          if (!latestPk) {
-            // Fetch PK via Socket (Zero POST)
-            emit('get_public_key', { targetUserId: otherUser.id }, async (pkRes: any) => {
-              if (pkRes.success && pkRes.publicKey) {
-                publicKeyCache.current.set(otherUser.id, pkRes.publicKey);
-                // Recursive call or just continue if we have it? 
-                // For now, assume it's rare to not have it in cache if we are already chatting.
-              }
+        const myKeys = await getMyKeyPair(currentUser.id);
+        
+        if (otherUser && myKeys) {
+          // Fetch the FRESH public key from the server to avoid stale key issues
+          const freshPk: string | null = await new Promise((resolve) => {
+            emit('get_public_key', { targetUserId: otherUser.id }, (res: any) => {
+              resolve(res?.success ? res.publicKey : otherUser.publicKey);
             });
-            latestPk = otherUser.publicKey; // Fallback to prop
-          }
-
-          if (latestPk) {
-            const sharedKey = await getConversationKey(
-              currentUser.id,
-              selectedChat.id,
-              JSON.parse(latestPk)
-            );
-            if (sharedKey) {
-              const encrypted = await encryptMessage(payload.text, sharedKey);
-              payload = {
-                ...payload,
-                text: encrypted.ciphertext,
-                iv: encrypted.iv,
-                encrypted: true,
-              };
-            }
+          });
+          
+          if (freshPk) {
+            const encryptionSalt = crypto.randomUUID();
+            const theirPk = await importPublicKey(JSON.parse(freshPk));
+            const sharedKey = await deriveSharedKey(myKeys.privateKey, theirPk, selectedChat.id, encryptionSalt);
+            
+            const { ciphertext, iv } = await encryptMessage(payload.text, sharedKey);
+            
+            // Safely export our active key so the receiver isn't reliant on a stale DB state
+            const myLivePkJwk = await exportPublicKey(myKeys.publicKey);
+            
+            payload = {
+              ...payload,
+              text: ciphertext,
+              iv,
+              encryptionSalt,
+              senderLivePublicKey: JSON.stringify(myLivePkJwk),
+              encrypted: true
+            };
           }
         }
       } catch (err) {
-        console.error('[E2EE] Encrypt failed, sending unencrypted:', err);
+        console.error('[E2EE] Deterministic encrypt failed:', err);
       }
     }
 
     // Send via Socket (Zero POST)
     emit('send_message', payload, (res: any) => {
+      clearTimeout(sendTimeout);
       clearInterval(progressInterval);
       setUploadProgress(100);
       
@@ -646,6 +785,7 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
       if (res.success) {
         if (!customData) setNewMessage("");
         setIsEphemeral(false); 
+        setReplyingTo(null);
         
         const localMsg = res.message;
         if (localMsg) {
@@ -891,6 +1031,7 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
 
   const filteredConversations = conversations.filter(c => {
     const other = getOtherUser(c);
+    if (!other) return false;
     return other.username.toLowerCase().includes(searchQuery.toLowerCase()) || 
            (other.name && other.name.toLowerCase().includes(searchQuery.toLowerCase()));
   });
@@ -933,6 +1074,7 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
             filteredConversations.length > 0 ? (
               filteredConversations.map((chat) => {
                 const other = getOtherUser(chat);
+                if (!other) return null;
                 const lastMsg = chat.messages[0];
                 return (
                   <motion.div 
@@ -1052,7 +1194,40 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
                         Tier {userAccess.tier}
                     </div>
                 )}
-                <MoreVertical size={20} className="text-zinc-500 cursor-pointer hover:text-white" />
+                <div className="relative">
+                  <MoreVertical 
+                    size={20} 
+                    className={`cursor-pointer transition-colors ${showChatMenu ? 'text-white' : 'text-zinc-500 hover:text-white'}`} 
+                    onClick={() => setShowChatMenu(!showChatMenu)}
+                  />
+                  <AnimatePresence>
+                    {showChatMenu && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute right-0 top-10 w-48 bg-zinc-900 border border-border-theme rounded-2xl shadow-2xl overflow-hidden z-50 p-1"
+                      >
+                        <button 
+                          onClick={() => {
+                            handleResetSession();
+                            setShowChatMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all rounded-xl"
+                        >
+                          <RotateCw size={14} className="text-purple-500" />
+                          Reset Session
+                        </button>
+                        <button 
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all rounded-xl"
+                        >
+                          <Info size={14} className="text-zinc-500" />
+                          Details
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
 
@@ -1114,59 +1289,112 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
                          <div className="w-8 h-8 rounded-full bg-zinc-900 border border-border-theme shrink-0 overflow-hidden relative self-end">
                             {msg.sender.image ? <Image src={msg.sender.image} alt="s" fill /> : <div className="flex items-center justify-center h-full text-[10px] font-black uppercase text-zinc-600">{msg.sender.username[0]}</div>}
                          </div>
-                         <div className={`space-y-1 ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
+                         <div className={`space-y-1 ${isMine ? 'items-end' : 'items-start'} flex flex-col relative group/msg min-w-0`}>
+                            {/* Reply Button (WhatsApp Style) */}
+                            <button 
+                              onClick={() => {
+                                setReplyingTo(msg);
+                                // Focus input
+                                document.querySelector<HTMLInputElement>('input[placeholder="Write message..."]')?.focus();
+                              }}
+                              className={`absolute top-0 ${isMine ? '-left-10' : '-right-10'} p-2 bg-zinc-900 border border-border-theme rounded-full text-zinc-500 opacity-0 group-hover/msg:opacity-100 transition-all hover:text-white hover:scale-110 hidden md:flex`}
+                              title="Reply"
+                            >
+                              <Reply size={14} />
+                            </button>
+
                             <div 
                               onClick={() => {
                                 if (msg.mediaUrl) {
                                   setActiveMedia(msg);
                                   if (!isMine && msg.viewLimit && msg.viewCount < msg.viewLimit) {
                                     markMessageSeen(msg.id);
-                                    setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, viewCount: m.viewCount + 1 } : m));
+                                    setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, viewCount: (m.viewCount || 0) + 1 } : m));
                                   }
                                 }
                               }}
-                              className={`p-4 rounded-2xl text-xs md:text-sm font-medium shadow-2xl transition-all cursor-pointer group/bubble ${isMine ? 'bg-white text-black rounded-br-none' : 'bg-zinc-900 text-white border border-border-theme rounded-tl-none backdrop-blur-md'}`}
+                              className={`rounded-2xl text-xs md:text-sm font-medium shadow-2xl transition-all cursor-pointer group/bubble overflow-hidden max-w-[85%] md:max-w-[500px] min-w-[60px] ${isMine ? 'bg-white text-black rounded-br-none' : 'bg-zinc-900 text-white border border-border-theme rounded-tl-none backdrop-blur-md'}`}
                             >
-                                {msg.type === 'TEXT' ? (
-                                    <p className="leading-relaxed">{msg.text}</p>
-                                ) : msg.type === 'VOICE' ? (
-                                    <VoiceMessagePlayer url={msg.mediaUrl} duration={msg.duration} isMine={isMine} />
-                                ) : (
-                                    <div className="relative">
-                                        {(!isMine && msg.viewLimit && msg.viewCount === 0) ? (
-                                          <div className="w-48 aspect-square bg-zinc-800/50 rounded-xl flex flex-col items-center justify-center gap-3 border border-dashed border-zinc-700 hover:bg-zinc-800/80 transition-colors">
-                                            <div className="w-14 h-14 bg-purple-500/20 rounded-full flex items-center justify-center ring-4 ring-purple-500/5 group-hover/bubble:scale-110 transition-transform">
-                                              <Eye size={24} className="text-purple-400" />
-                                            </div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">View Once Media</p>
-                                            <p className="text-[8px] font-bold text-purple-500/60 uppercase">Tap to Reveal</p>
-                                          </div>
-                                        ) : (
-                                          <div className="relative w-48 aspect-square rounded-xl overflow-hidden mb-1">
-                                              {msg.mediaUrl ? (
-                                                <>
-                                                    {isVideo(msg.mediaUrl) ? (
-                                                       <video src={msg.mediaUrl} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                       <Image src={msg.mediaUrl} alt="media" fill className="object-cover transition-transform group-hover/bubble:scale-105" />
-                                                    )}
-                                                    <div className="absolute inset-0 bg-black/20 group-hover/bubble:bg-black/0 transition-colors" />
-                                                </>
-                                              ) : (
-                                                <div className="w-full h-full bg-zinc-950 flex flex-col items-center justify-center gap-2 border border-border-theme">
-                                                    <Lock size={16} className="text-zinc-800" />
-                                                    <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest italic">Expired</span>
-                                                </div>
-                                              )}
-                                              {msg.viewLimit && msg.mediaUrl && (
-                                                <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 text-[8px] font-black uppercase text-purple-400">
-                                                  View Once
-                                                </div>
-                                              )}
-                                          </div>
-                                        )}
+                                {/* Reply Snippet inside Bubble */}
+                                {msg.repliedTo && (
+                                  <div 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const el = document.getElementById(`msg-${msg.repliedToId}`);
+                                      if (el) {
+                                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        el.classList.add('ring-2', 'ring-purple-500', 'ring-offset-2', 'ring-offset-black');
+                                        setTimeout(() => el.classList.remove('ring-2', 'ring-purple-500', 'ring-offset-2', 'ring-offset-black'), 2000);
+                                      }
+                                    }}
+                                    className={`mb-2 p-2 rounded-xl text-[10px] border-l-4 overflow-hidden max-w-full ${isMine ? 'bg-black/5 border-purple-500/50' : 'bg-white/5 border-purple-500/50'}`}
+                                  >
+                                    <div className="flex items-center gap-1 mb-0.5">
+                                      <CornerUpLeft size={10} className="text-purple-400" />
+                                      <span className="font-black uppercase tracking-widest text-purple-400">
+                                        {msg.repliedTo.sender?.username || 'User'}
+                                      </span>
                                     </div>
+                                    <p className={`truncate opacity-60 italic ${isMine ? 'text-black' : 'text-zinc-300'}`}>
+                                      {msg.repliedTo.text || (msg.repliedTo.type === 'MEDIA' ? 'Photo / Video' : 'Voice Message')}
+                                    </p>
+                                  </div>
                                 )}
+                                <div className="flex flex-col" id={`msg-${msg.id}`}>
+                                  {/* Media Content First */}
+                                  {msg.type === 'MEDIA' && (
+                                    <div className="relative">
+                                      {(!isMine && msg.viewLimit && msg.viewCount === 0) ? (
+                                        <div className="w-full aspect-square md:w-64 bg-zinc-800/50 rounded-t-xl flex flex-col items-center justify-center gap-3 border border-dashed border-zinc-700 hover:bg-zinc-800/80 transition-colors p-6">
+                                          <div className="w-14 h-14 bg-purple-500/20 rounded-full flex items-center justify-center ring-4 ring-purple-500/5 group-hover/bubble:scale-110 transition-transform">
+                                            <Eye size={24} className="text-purple-400" />
+                                          </div>
+                                          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">View Once Media</p>
+                                          <p className="text-[8px] font-bold text-purple-500/60 uppercase">Tap to Reveal</p>
+                                        </div>
+                                      ) : (
+                                        <div className="relative w-full aspect-square md:w-64 overflow-hidden border-b border-white/5">
+                                            {msg.mediaUrl ? (
+                                              <>
+                                                  {isVideo(msg.mediaUrl) ? (
+                                                     <video src={msg.mediaUrl} className="w-full h-full object-cover" />
+                                                  ) : (
+                                                     <Image src={msg.mediaUrl} alt="media" fill className="object-cover transition-transform group-hover/bubble:scale-105" />
+                                                  )}
+                                                  <div className="absolute inset-0 bg-black/20 group-hover/bubble:bg-black/0 transition-colors" />
+                                              </>
+                                            ) : (
+                                              <div className="w-full h-full bg-zinc-950 flex flex-col items-center justify-center gap-2 border border-border-theme">
+                                                  <Lock size={16} className="text-zinc-800" />
+                                                  <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest italic">Expired</span>
+                                              </div>
+                                            )}
+                                            {msg.viewLimit && msg.mediaUrl && (
+                                              <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 text-[8px] font-black uppercase text-purple-400">
+                                                View Once
+                                              </div>
+                                            )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Voice Message */}
+                                  {msg.type === 'VOICE' && (
+                                    <div className="px-3 py-2">
+                                      <VoiceMessagePlayer url={msg.mediaUrl} duration={msg.duration} isMine={isMine} />
+                                    </div>
+                                  )}
+
+                                  {/* Text Content (Always "goes down" - below media/voice) */}
+                                  {msg.text && (
+                                    <div className={`px-4 py-3 ${msg.type !== 'TEXT' ? 'border-t border-white/5 bg-black/10' : ''}`}>
+                                      <p className={`leading-relaxed whitespace-pre-wrap break-words max-w-full overflow-hidden text-[13px] md:text-sm ${isMine ? 'text-black' : 'text-zinc-100'}`}>
+                                        {msg.text}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
                             </div>
                             <span suppressHydrationWarning className="text-[8px] text-zinc-600 font-black uppercase tracking-widest px-1">
                                 {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
@@ -1214,18 +1442,53 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
                           {6 - userAccess.messagesSent} Free messages remaining
                       </p>
                   )}
-                  <div className="flex items-center gap-2 md:gap-4">
+
+                  {/* Reply Preview Box */}
+                  <AnimatePresence>
+                    {replyingTo && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="bg-zinc-900 border border-border-theme border-b-0 rounded-t-[1.5rem] p-4 flex items-center justify-between gap-4 backdrop-blur-xl relative z-10"
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="w-1 h-10 bg-purple-500 rounded-full" />
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-purple-400">
+                              Replying to {replyingTo.sender?.username}
+                            </span>
+                            <p className="text-xs text-zinc-400 truncate max-w-md">
+                              {replyingTo.text || (replyingTo.type === 'MEDIA' ? 'Photo / Video' : 'Voice Message')}
+                            </p>
+                          </div>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => setReplyingTo(null)}
+                          className="p-2 bg-zinc-800 rounded-xl text-zinc-500 hover:text-white transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className={`flex items-center gap-2 md:gap-4 ${replyingTo ? 'mt-[-1px]' : ''}`}>
                       <div className="flex-1 relative flex items-center">
-                        <input 
-                          type="text"
-                          value={newMessage}
-                          onChange={(e) => {
-                            setNewMessage(e.target.value);
-                            handleTyping();
-                          }}
-                          placeholder="Write message..."
-                          className="w-full bg-zinc-900/50 border border-border-theme rounded-[1.5rem] md:rounded-[2rem] py-3 md:py-4 px-4 sm:px-12 md:px-14 lg:pr-48 md:pr-40 pr-32 focus:outline-none focus:ring-1 focus:ring-zinc-600 text-[13px] md:text-sm font-medium transition-all"
-                        />
+                          <input 
+                            type="text"
+                            value={newMessage}
+                            onChange={(e) => {
+                              setNewMessage(e.target.value);
+                              handleTyping();
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape' && replyingTo) setReplyingTo(null);
+                            }}
+                            placeholder="Write message..."
+                            className={`w-full bg-zinc-900/50 border border-border-theme py-3 md:py-4 px-4 sm:px-12 md:px-14 lg:pr-48 md:pr-40 pr-32 focus:outline-none focus:ring-1 focus:ring-zinc-600 text-[13px] md:text-sm font-medium transition-all ${replyingTo ? 'rounded-b-[1.5rem] border-t-zinc-800' : 'rounded-[1.5rem] md:rounded-[2rem]'}`}
+                          />
                         
                         <div className="absolute right-2 md:right-4 flex items-center gap-1.5 md:gap-3">
                           {currentUser.role === 'CREATOR' && (
@@ -1631,6 +1894,134 @@ const MessagesClient = ({ currentUser, initialConversations, initialRequests }: 
         hidden 
         accept="image/*,video/*"
       />
+
+      <AnimatePresence>
+        {showRestoreModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-3xl flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="w-full max-w-md bg-zinc-900 border border-white/10 rounded-[32px] p-8 shadow-2xl overflow-hidden relative"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-pink-500" />
+              
+              <div className="flex flex-col items-center text-center gap-6">
+                <div className="w-20 h-20 bg-purple-500/10 rounded-full flex items-center justify-center ring-4 ring-purple-500/5">
+                  <Shield size={36} className="text-purple-400" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-black italic tracking-tighter uppercase text-white">Restore Secure Chats</h2>
+                  <p className="text-xs text-zinc-500 font-medium leading-relaxed">
+                    We detected an existing security backup. Enter your **Recovery Password** to unlock your messages on this device.
+                  </p>
+                </div>
+
+                <form onSubmit={handleRestoreKeys} className="w-full space-y-4">
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 ml-1">Recovery Password</label>
+                    <input 
+                      type="password"
+                      value={restorePassword}
+                      onChange={(e) => setRestorePassword(e.target.value)}
+                      placeholder="Enter password..."
+                      className="w-full bg-black/50 border border-white/5 rounded-2xl py-4 px-6 text-sm focus:outline-none focus:border-purple-500/50 transition-all font-medium"
+                      required
+                    />
+                    {keyError && <p className="text-[10px] text-red-500 font-bold ml-1">{keyError}</p>}
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={isProcessingKeys}
+                    className="w-full bg-white text-black py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5 disabled:opacity-50"
+                  >
+                    {isProcessingKeys ? "Decrypting..." : "Decrypt & Unlock"}
+                  </button>
+                  
+                  <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest text-center">
+                    Note: Your password is never sent to the server.
+                  </p>
+                </form>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showBackupModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-3xl flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="w-full max-w-md bg-zinc-900 border border-white/10 rounded-[32px] p-8 shadow-2xl overflow-hidden relative"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
+              
+              <div className="flex flex-col items-center text-center gap-6">
+                <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center ring-4 ring-emerald-500/5">
+                  <Lock size={36} className="text-emerald-400" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-black italic tracking-tighter uppercase text-white">Secure Your Chats</h2>
+                  <p className="text-xs text-zinc-500 font-medium leading-relaxed px-4">
+                    Set a **Recovery Password** to back up your encryption keys. This allows you to read your messages on other devices or if you clear your browser.
+                  </p>
+                </div>
+
+                <form onSubmit={handleCreateBackup} className="w-full space-y-4">
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600 ml-1">New Recovery Password</label>
+                    <input 
+                      type="password"
+                      value={backupPassword}
+                      onChange={(e) => setBackupPassword(e.target.value)}
+                      placeholder="Min. 8 characters..."
+                      className="w-full bg-black/50 border border-white/5 rounded-2xl py-4 px-6 text-sm focus:outline-none focus:border-emerald-500/50 transition-all font-medium"
+                      required
+                      minLength={8}
+                    />
+                  </div>
+
+                  <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4">
+                     <p className="text-[9px] text-emerald-500/80 font-black uppercase leading-relaxed text-left">
+                       ⚠️ Important: If you lose this password, your old messages can never be recovered. We do not store it.
+                     </p>
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={isProcessingKeys}
+                    className="w-full bg-emerald-500 text-black py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {isProcessingKeys ? "Securing..." : "Create Security Backup"}
+                  </button>
+                  
+                  <button 
+                    type="button"
+                    onClick={() => setShowBackupModal(false)}
+                    className="text-[9px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors"
+                  >
+                    I'll do it later
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

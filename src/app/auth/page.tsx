@@ -75,8 +75,9 @@ const AuthPage = () => {
         await register(data);
       }
     } catch (err: any) {
-      // Next.js redirect() throws an error that should be ignored by the UI
-      if (!err.message.includes("NEXT_REDIRECT")) {
+      // Next.js redirect() throws with err.digest in Next.js 15+, err.message in older versions
+      const isRedirect = err?.digest?.startsWith('NEXT_REDIRECT') || err?.message?.includes('NEXT_REDIRECT');
+      if (!isRedirect) {
         alert(err.message || "Authentication failed. Please check your credentials.");
       }
     } finally {
@@ -90,7 +91,8 @@ const AuthPage = () => {
     try {
       await verifyTwoFactor(tempUserId, twoFactorAnswer);
     } catch (err: any) {
-      if (!err.message.includes("NEXT_REDIRECT")) {
+      const isRedirect = err?.digest?.startsWith('NEXT_REDIRECT') || err?.message?.includes('NEXT_REDIRECT');
+      if (!isRedirect) {
         alert(err.message || "Invalid answer.");
       }
     } finally {
